@@ -8,10 +8,10 @@ Salida en terminal: `Request API Lite is running on http://localhost:3000`
 
 | Endpoint | Intención | Entrada | Respuesta actual | Problema | Propuesta |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `GET /getRequests` | Listar solicitudes | Ninguna | *(Pegar evidencia de A1 aquí)* | La ruta incluye un verbo (`getRequests`), violando las convenciones. No admite query parameters. | `GET /requests` devolviendo 200 OK. |
-| `GET /requests/:id` | Consultar solicitud existente | `1` | *(Pegar evidencia de A2 aquí)* | Correcto. | Mantener igual, 200 OK. |
-| `GET /requests/:id` | Consultar solicitud inexistente | `999` | *(Pegar evidencia de A3 aquí)* | Devuelve un estado `200 OK` con un cuerpo de error, contradiciendo el contrato HTTP. | `GET /requests/:id` devolviendo 404 Not Found. |
-| `POST /requests` | Crear solicitud sin título | Body JSON sin `title` | *(Pegar evidencia de A5 aquí)* | Devuelve estado 200 OK en lugar de código de error, no valida los datos requeridos y guarda el registro incompleto. | `POST /requests` devolviendo 400 Bad Request. |
+| `GET /getRequests` | Listar solicitudes | Ninguna | *(Ver evidencia de A1 en sección 3)* | La ruta incluye un verbo (`getRequests`), violando las convenciones. No admite query parameters. | `GET /requests` devolviendo 200 OK. |
+| `GET /requests/:id` | Consultar solicitud existente | `1` | *(Ver evidencia de A2 en sección 3)* | Correcto. | Mantener igual, 200 OK. |
+| `GET /requests/:id` | Consultar solicitud inexistente | `999` | *(Ver evidencia de A3 en sección 3)* | Devuelve un estado `200 OK` con un cuerpo de error, contradiciendo el contrato HTTP. | `GET /requests/:id` devolviendo 404 Not Found. |
+| `POST /requests` | Crear solicitud sin título | Body JSON sin `title` | *(Ver evidencia de A5 en sección 3)* | Devuelve estado 200 OK en lugar de código de error, no valida los datos requeridos y guarda el registro incompleto. | `POST /requests` devolviendo 400 Bad Request. |
 | `GET /requests` | Listar solicitudes por recurso | Ninguna | 404 Not Found (HTML genérico) | La ruta correcta del recurso no existe en el servidor original. | `GET /requests` devolviendo 200 OK. |
 | `POST /requests` | Crear solicitud válida | JSON completo con title | 200 OK con el objeto creado | Devuelve un estado 200 genérico en lugar de 201 Created. | `POST /requests` devolviendo 201 Created. |
 | `GET /getRequests` | Comprobar efecto de creación | Ninguna | 200 OK con arreglo que incluye el objeto inválido de A5. | El servidor guardó el objeto sin título porque no validó la entrada. | El GET posterior no debe contener objetos malformados. |
