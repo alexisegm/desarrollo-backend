@@ -43,7 +43,7 @@ Una solicitud ('request') representa un ticket de mantenimiento o reporte de fal
     "priority": "high"
   }
 ]
-
+```
 ## Endpoint 2 — Consultar una solicitud
 
 | Elemento              | Valor |
@@ -64,14 +64,14 @@ Una solicitud ('request') representa un ticket de mantenimiento o reporte de fal
   "status": "open",
   "priority": "high"
 }
-
+```
 **Ejemplo de respuesta (error)**
 
 ```json
 {
   "error": "Request not found"
 }
-
+```
 ## Endpoint 3 — Crear una solicitud
 
 | Elemento              | Valor |
@@ -90,6 +90,7 @@ Una solicitud ('request') representa un ticket de mantenimiento o reporte de fal
   "description": "The faucet in the third floor bathroom leaks.",
   "priority": "medium"
 }
+```
 **Ejemplo de respuesta (éxito)**
 
 ```json
@@ -100,14 +101,14 @@ Una solicitud ('request') representa un ticket de mantenimiento o reporte de fal
   "status": "open",
   "priority": "medium"
 }
-
+```
 **Ejemplo de respuesta (error de validación)**
 
 ```json
 {
   "error": "Title is required"
 }
-
+```
 ## Reglas transversales
 
 Responde en una línea cada una:
