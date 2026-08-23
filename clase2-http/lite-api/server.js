@@ -30,36 +30,38 @@ const requests = [
   }
 ];
 
-let nextId = 4;
-
-app.get('/getRequests', (req, res) => {
+// 1. Correcion: Cambie '/getRequests' por '/requests'
+app.get('/requests', (req, res) => {
   res.json(requests);
 });
 
+// 2. Correcion: Añadi el estado 404 para recursos los inexistentes
 app.get('/requests/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const request = requests.find((item) => item.id === id);
-
+  const request = requests.find(r => r.id === parseInt(req.params.id));
   if (!request) {
-    return res.json({ error: 'Request not found' });
+    return res.status(404).json({ error: 'Request not found' });
   }
-
   res.json(request);
 });
 
+// Correccion: agregue la validacion (400) y el estado de creacion (201)
 app.post('/requests', (req, res) => {
+  const { title, description, priority } = req.body;
+  
+  if (!title) {
+    return res.status(400).json({ error: 'Title is required' });
+  }
+
   const newRequest = {
-    id: nextId,
-    title: req.body.title,
-    description: req.body.description,
+    id: requests.length > 0 ? requests[requests.length - 1].id + 1 : 1,
+    title,
+    description,
     status: 'open',
-    priority: req.body.priority
+    priority: priority || 'low'
   };
-
-  nextId = nextId + 1;
+  
   requests.push(newRequest);
-
-  res.status(200).json(newRequest);
+  res.status(201).json(newRequest);
 });
 
 app.listen(PORT, () => {
