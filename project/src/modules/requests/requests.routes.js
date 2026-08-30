@@ -7,18 +7,36 @@ const router = express.Router();
 // This router is mounted at /requests in app.js, so '/' here means GET /requests.
 
 router.get('/', (req, res) => {
-  res.status(200).json(requests);
-});
+  const { status, priority } = req.query;
 
-router.get('/:id', (req, res) => {
-  const id = Number(req.params.id);
-  const request = requests.find((item) => item.id === id);
-
-  if (!request) {
-    return res.status(404).json({ error: 'Request not found' });
+  
+  if (status !== undefined && !isValidStatus(status)) {
+    return res.status(400).json({
+      error: { code: 'UNKNOWN_STATUS', message: `Filter status '${status}' is not recognized.` }
+    });
   }
 
-  res.status(200).json(request);
+ 
+  const validPriorities = ['low', 'medium', 'high'];
+  if (priority !== undefined && !validPriorities.includes(priority)) {
+    return res.status(400).json({
+      error: { code: 'UNKNOWN_PRIORITY', message: `Filter priority '${priority}' is not recognized.` }
+    });
+  }
+
+  
+  let result = requests;
+
+  if (status !== undefined) {
+    result = result.filter(item => item.status === status);
+  }
+
+  if (priority !== undefined) {
+    result = result.filter(item => item.priority === priority);
+  }
+
+  
+  res.status(200).json(result);
 });
 
 router.post('/', (req, res) => {
