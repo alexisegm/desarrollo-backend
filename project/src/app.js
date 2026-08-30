@@ -1,6 +1,6 @@
 // Application setup: middlewares and route mounting. It does not open any port.
 import express from 'express';
-import requestsRoutes from './routes/requests.routes.js';
+import requestsRoutes from './modules/requests/requests.routes.js';
 
 const app = express();
 
