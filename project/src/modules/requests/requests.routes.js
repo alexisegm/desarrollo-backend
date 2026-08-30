@@ -23,16 +23,37 @@ router.get('/:id', (req, res) => {
 router.post('/', (req, res) => {
   const { title, description, priority } = req.body ?? {};
 
+  // Validación de forma: Título obligatorio con el nuevo formato de error
   if (typeof title !== 'string' || title.trim() === '') {
-    return res.status(400).json({ error: 'Title is required' });
+    return res.status(400).json({
+      error: { code: 'MISSING_TITLE', message: 'Title is required' }
+    });
   }
+
+  // Validación de forma: Prioridad conocida y asignación por defecto
+  const validPriorities = ['low', 'medium', 'high'];
+  let finalPriority = 'medium'; 
+  
+  if (priority !== undefined) {
+    if (!validPriorities.includes(priority)) {
+      return res.status(400).json({
+        error: { code: 'UNKNOWN_PRIORITY', message: 'Priority must be low, medium, or high' }
+      });
+    }
+    finalPriority = priority;
+  }
+
+  // El servidor genera las fechas en formato ISO
+  const now = new Date().toISOString();
 
   const request = {
     id: generateId(),
     title: title.trim(),
     description: typeof description === 'string' ? description : '',
-    status: 'open',
-    priority: typeof priority === 'string' ? priority : 'medium'
+    status: 'open', // Regla: siempre inicia en open
+    priority: finalPriority,
+    createdAt: now,
+    updatedAt: now
   };
 
   requests.push(request);
