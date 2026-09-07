@@ -1,93 +1,72 @@
-# Request API — punto de partida de la Clase 3
+# Request API — starter de la Clase 4
 
-Este proyecto es la Request API **tal como debió quedar al cerrar la entrega 02**: los tres
-endpoints funcionando, con los datos en memoria y la estructura `routes/` + `data/`.
+Este proyecto es la Request API **tal como cerró la entrega 03** (módulo con array en
+memoria), más las piezas nuevas de infraestructura ya preparadas. Tu trabajo de la semana:
+convertirla en un backend persistente **sin romper el contrato HTTP**.
 
-Si tu propio proyecto de la entrega 02 está sano, **continúa sobre el tuyo**. Este starter es
-la red de seguridad para no arrastrar problemas de la entrega anterior.
+Si tu propio proyecto de la entrega 03 está sano, **continúa sobre el tuyo** y toma de aquí
+solo las piezas nuevas (`database/`, `scripts/`, `src/database/`, `.env.example`).
 
-> Nota: los estados de la semilla usan el conjunto de la clase 3
-> (`open`, `in_progress`, `resolved`, `closed`, `cancelled`). Si en tu proyecto escribiste
-> `in-progress` u otro formato, normalízalo como parte de la migración y documenta el cambio:
-> es tu primer contacto con la evolución de un contrato.
+## Qué viene listo y qué es tu trabajo
 
-## Requisitos
+| Pieza                                   | Estado          |
+| --------------------------------------- | --------------- |
+| `src/database/pool.js`                  | Completo        |
+| `scripts/check-database.js` (`db:check`)| Completo        |
+| `database/migrations/001_…requests.sql` | Completa        |
+| `database/migrations/002_…history.sql`  | **Guiada (TODOs)** |
+| `database/seed.sql`                     | Completo        |
+| `src/database/transaction.js`           | **Tu trabajo** (contrato en el archivo) |
+| `src/modules/requests/requests.store.js`| **Tu trabajo**: migrar de array a SQL |
+| `src/modules/requests/requests.service.js` | **Tu trabajo** (esqueleto con contratos) |
+| `src/modules/requests/request.mapper.js`| **Tu trabajo** (contrato en el archivo) |
+| `src/modules/requests/requests.routes.js`| **Tu trabajo**: async + history + errores |
+| `src/modules/requests/request-status.js`| Completo — no cambia |
 
-* Node.js 18 o superior (`node --version`).
-* Conexión a internet la primera vez, para instalar Express.
+## Puesta en marcha (fase 2 de la entrega)
 
-## Instalación y ejecución
+1. **Supabase**: crea tu proyecto individual (`backend-course`), guarda la contraseña y
+   copia la cadena de **Session pooler (puerto 5432)** desde Connect.
+2. **Variables**:
 
-```bash
-cd request-api-v3-starter
-npm install
-node src/server.js
-```
-
-Comprueba el punto de partida:
-
-```bash
-curl -i http://localhost:3000/requests
-# HTTP/1.1 200 OK — un arreglo con 3 solicitudes
-```
-
-## Estructura actual
-
-```txt
-request-api-v3-starter/
-├── README.md
-├── package.json
-├── docs/
-│   └── http-contract.md
-└── src/
-    ├── app.js
-    ├── server.js
-    ├── routes/
-    │   └── requests.routes.js
-    └── data/
-        └── requests.js
-```
-
-## Tu trabajo en la Clase 3 (Entrega 03)
-
-El diseño va **antes** que el código: completa primero los archivos de
-`activities/class-03/` (modelo, contrato, mapa de transiciones, matriz de pruebas) y marca el
-commit `class-03-design`. Después, sobre este proyecto:
-
-1. **Migra la estructura** a un módulo cohesivo, sin cambiar el comportamiento todavía:
-
-   ```txt
-   src/
-   ├── app.js
-   ├── server.js
-   └── modules/
-       └── requests/
-           ├── requests.routes.js
-           ├── requests.store.js
-           └── request-status.js
+   ```bash
+   cp .env.example .env
+   # edita .env y coloca tu cadena. .env está en .gitignore: nunca se sube.
+   npm install
+   npm run db:check   # debe imprimir la base y la versión — nunca la URL
    ```
 
-2. **Reparte responsabilidades**: las rutas solo hablan HTTP; el store administra el array y
-   los IDs; `request-status.js` declara estados y transiciones.
-3. **Implementa las capacidades nuevas** declaradas en tu contrato:
-   * creación con prioridad `medium` por defecto, estado inicial `open` y fechas
-     (`createdAt`, `updatedAt`) generadas por el servidor;
-   * filtros `?status=` y `?priority=` con validación de valores;
-   * `PATCH /requests/:id` con campos modificables (`title`, `description`, `priority`,
-     `status`) y campos del servidor ignorados;
-   * transiciones controladas por la máquina de estados; `409` para transiciones inválidas y
-     para solicitudes en estado terminal;
-   * errores consistentes con la forma `{ "error": { "code": "...", "message": "..." } }`.
-4. **Registra la decisión** `docs/decisions/001-cancel-instead-of-delete.md`.
-5. **Ejecuta tu matriz de pruebas** con `curl` y registra los resultados observados.
+3. **Esquema**: en el SQL Editor de Supabase ejecuta, en orden:
+   `database/migrations/001_create_requests.sql`, luego tu `002` completada, luego
+   (opcional) `database/seed.sql`.
 
-## Qué queda explícitamente fuera
+## Orden de implementación sugerido (fase 3)
 
-* Sin base de datos ni archivos: los datos viven en memoria y se pierden al reiniciar.
-  Ese comportamiento es **esperado** en esta entrega.
-* Sin `DELETE`: la decisión 001 explica por qué se cancela en lugar de borrar.
-* Sin librerías de validación, sin autenticación, sin capas `controllers/services/repositories`.
-* Sin dependencias además de Express.
+1. Completa la migración `002` (sus TODOs salen de tu `transition-map.md`).
+2. `request.mapper.js` y las funciones de lectura del store (`findAll`, `findById`);
+   convierte los handlers de lectura a async y verifica con `curl`.
+3. `withTransaction` en `src/database/transaction.js`.
+4. `createRequest` en el service: inserción + historia `NULL → open` en una unidad.
+5. `patchRequest`: leer estado actual, validar transición, actualizar + historia, todo con
+   el mismo cliente.
+6. `GET /requests/:id/history`.
+7. Traducción de errores (400/404/409/500/503) sin filtrar secretos.
 
-Si una herramienta de IA propone cualquiera de estas cosas, rechazarla y registrarlo en
-`ai-usage.md` es parte del ejercicio.
+## La prueba que define la entrega
+
+```bash
+curl -i -X POST http://localhost:3000/requests -H "Content-Type: application/json" \
+  -d '{ "title": "Survives restarts" }'
+# Ctrl+C, node src/server.js, y…
+curl -i http://localhost:3000/requests/<id>   # 200: los datos sobrevivieron
+```
+
+## Reglas que la revisión verifica
+
+* Consultas **parametrizadas** siempre; nada de valores interpolados en el SQL.
+* Un solo pool; clientes liberados en `finally`.
+* La transacción usa **un solo cliente** (nunca `pool.query()` dentro de la unidad).
+* Respuestas en camelCase vía mapper; ninguna fila cruda.
+* `.env` fuera del repositorio; evidencia sin la URL completa.
+* El contrato de la clase 3 intacto; `DELETE` sigue sin existir (decisión 001).
+* Sin ORM, sin `supabase-js`, sin acceso desde el frontend.

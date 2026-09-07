@@ -1,14 +1,17 @@
 {
   "name": "request-api",
-  "version": "2.0.0",
+  "version": "4.0.0-starter",
   "private": true,
-  "description": "Request API as delivered in class 02, starting point for class 03",
+  "description": "Starter for class 04: from the in-memory store to PostgreSQL",
   "type": "module",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "db:check": "node scripts/check-database.js"
   },
   "dependencies": {
-    "express": "^5.1.0"
+    "dotenv": "^16.4.5",
+    "express": "^5.1.0",
+    "pg": "^8.13.1"
   }
 }
