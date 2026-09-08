@@ -1,43 +1,45 @@
 # Data model — Request API v4
 
-Fase 1 · se completa antes de usar IA y antes de tocar código.
-El esquema expresa decisiones sobre los datos, no solo su forma: cada NOT NULL, DEFAULT y CHECK debe poder defenderse.
+Fase 1 · Todo esto lo pensé y lo definí antes de usar IA y de escribir la primera línea de código.
+Aquí no solo dibujé la forma de los datos, sino que tomé decisiones reales: cada regla que le puse a la base de datos tiene una razón de ser.
 
 ## Tabla requests
+Esta es la tabla principal donde viven las solicitudes.
 
-| Columna | Tipo | ¿Nulo? | Default | Restricciones | ¿Quién lo genera? |
+| Columna | Tipo | ¿Obligatorio? | Por defecto | Regla especial | ¿Quién lo llena? |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **id** | BIGINT | No | (Identity) | PRIMARY KEY | Base de datos |
-| **title** | VARCHAR(200) | No | Ninguno | Ninguna | Aplicación (Cliente) |
-| **description** | TEXT | Sí | Ninguno | Ninguna | Aplicación (Cliente) |
-| **priority** | VARCHAR(20) | No | 'medium' | CHECK | App / Base de datos |
-| **status** | VARCHAR(30) | No | 'open' | CHECK | App / Base de datos |
-| **created_at** | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | Ninguna | Base de datos |
-| **updated_at** | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | Ninguna | Base de datos |
+| **id** | BIGINT | Sí | Automático | Es la llave primaria | La base de datos |
+| **title** | VARCHAR(200) | Sí | - | - | El cliente que usa la app|
+| **description** | TEXT | No | - | - | El cliente |
+| **priority** | VARCHAR(20) | Sí | 'medium' | Solo valores válidos | La app o la base |
+| **status** | VARCHAR(30) | Sí | 'open' | Solo valores válidos | La app o la base|
+| **created_at** | TIMESTAMPTZ | Sí | La hora actual | - | La base de datos |
+| **updated_at** | TIMESTAMPTZ | Sí | La hora actual | - | La base de datos |
 
 ## Tabla request_status_history
+Aquí guardamos el rastro de por dónde ha pasado cada solicitud.
 
-| Columna | Tipo | ¿Nulo? | Default | Restricciones | Notas |
+| Columna | Tipo | ¿Obligatorio? | Por defecto | Regla especial | ¿Para qué sirve? |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **id** | BIGINT | No | (Identity) | PRIMARY KEY | Identificador único del evento. |
-| **request_id** | BIGINT | No | Ninguno | FOREIGN KEY | Referencia a `requests(id)`. |
-| **previous_status** | VARCHAR(30) | Sí | Ninguno | CHECK | Admite NULL porque el nacimiento de una solicitud no viene de ningún estado previo (pasa de la nada a 'open'). |
-| **new_status** | VARCHAR(30) | No | Ninguno | CHECK | No admite NULL porque siempre se transiciona hacia un estado válido. |
-| **changed_at** | TIMESTAMPTZ | No | CURRENT_TIMESTAMP | Ninguna | Fecha y hora exacta de la transición. |
+| **id** | BIGINT | Sí | Automático | Es la llave primaria | Identifica cada movimiento. |
+| **request_id** | BIGINT | Sí | - | Llave foránea | Nos dice a qué solicitud pertenece este cambio. |
+| **previous_status** | VARCHAR(30) | No | - | Solo valores válidos | Puede estar vacío porque cuando una solicitud nace, no viene de ningún estado anterior. |
+| **new_status** | VARCHAR(30) | Sí | - | Solo valores válidos | Siempre tiene que haber un estado de destino válido. |
+| **changed_at** | TIMESTAMPTZ | Sí | La hora actual | - | Marca el momento exacto en que cambió. |
 
-## Relaciones
-La clave foránea `request_id` en la tabla `request_status_history` relaciona los eventos históricos con su solicitud de origen en la tabla `requests` (relación de 1 a muchos). Esto prohíbe crear un evento histórico para una solicitud inexistente, evitando registros huérfanos.
+## Cómo se conectan
+Usamos el `request_id` para amarrar el historial con su solicitud original (es una relación de uno a muchos)[cite: 3]. Esto es súper útil porque la base de datos no te deja crear un historial para una solicitud que no existe, evitando que queden datos sueltos por ahí.
 
-## Reglas protegidas por la base
-* **NOT NULL:** Garantiza la presencia obligatoria del título, estado y prioridad.
-* **CHECK:** Restringe `status` y `priority` a sus valores permitidos, evitando que datos inválidos entren por cualquier vía.
-* **PRIMARY KEY e IDENTITY:** Garantiza unicidad y delega la generación secuencial del ID a la base de datos.
-* **FOREIGN KEY:** Protege la integridad referencial del historial.
+## Lo que cuida la base de datos
+* **Datos completos:** Se asegura de que el título, el estado y la prioridad nunca falten.
+* **Valores correctos:** Revisa que el estado y la prioridad sean opciones válidas para que no entre basura al sistema.
+* **Identidad única:** Se encarga de generar los IDs en orden y sin que se repitan.
+* **Historial seguro:** Protege que los registros del historial siempre apunten a algo real.
 
-## Reglas que sigue protegiendo la aplicación
-* **Transiciones permitidas:** La base sabe qué estados existen, pero la máquina de estados que controla el flujo vive en la aplicación.
-* **Restricción de modificación en estados terminales:** La base de datos no bloquea automáticamente actualizaciones sobre una solicitud cancelada; es la lógica en la aplicación la que rechaza la petición.
-* **Gestión de `updatedAt`:** La aplicación es la encargada de enviar la nueva fecha y hora en cada modificación (`PATCH`).
+## Lo que le toca cuidar a la aplicación
+* **Los saltos lógicos:** La base de datos sabe cuáles estados existen, pero es mi código el que decide si es válido pasar de un estado a otro.
+* **Solicitudes cerradas:** Si una solicitud ya se canceló, la base de datos técnicamente te deja modificarla, pero es la aplicación la que tranca la puerta y rechaza esos cambios.
+* **La hora de actualización:** Cada vez que modificamos algo, la aplicación es la responsable de mandarle a la base de datos la nueva hora exacta para el `updated_at`.
 
 ## Dudas
-* Ninguna documentada hasta el momento.
+* Una pregunta que me surgió viendo los tipos de datos: si estoy usando `TIMESTAMPTZ` para guardar la hora exacta de un evento, ¿la base de datos guarda automáticamente la hora local de mi ubicacion, o se registra obligatoriamente con la zona horaria del lugar físico donde esté alojado el servidor?

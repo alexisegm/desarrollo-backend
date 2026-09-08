@@ -21,8 +21,19 @@ Fase 1: se declara lo esperado. Fase 6: cada caso se ejecuta y se registra lo ob
 
 ## Evidencia clave (texto, sin secretos)
 
+## Evidencia clave (texto, sin secretos)
+
 ### Persistencia tras reinicio
-*(Se documentará en la Fase 6: El 201 con su id → el reinicio → el 200 posterior. Nunca la URL de conexión.)*
+1. Ejecución: `curl -i -X POST http://localhost:3000/requests -H "Content-Type: application/json" -d '{ "title": "Survives restarts", "priority": "high" }'`
+2. Observado: Respuesta `201 Created` devolviendo la solicitud con `id: 4`.
+3. Acción: Detuve el proceso de Express en la terminal (Ctrl+C) y lo volví a iniciar (`node src/server.js`).
+4. Verificación: `curl -i http://localhost:3000/requests/4`
+5. Observado: Respuesta `200 OK` con los mismos datos intactos, confirmando que el estado vive en PostgreSQL y no en el proceso.
 
 ### Rollback demostrado
-*(Se documentará en la Fase 6: Cómo se provocó el fallo controlado, la respuesta de error, y la consulta que muestra el estado intacto. Documentación de la reversión del fallo.)*
+1. Acción: Introduje un `throw new Error("Fallo simulado")` dentro de `requests.service.js` (en `patchRequest`), justo después del `insertStatusHistory` y antes del `COMMIT`.
+2. Ejecución: `curl -i -X PATCH http://localhost:3000/requests/3 -H "Content-Type: application/json" -d '{ "status": "in_progress" }'`
+3. Observado: Respuesta `500 Internal Server Error`. El error fue capturado por el bloque catch de `withTransaction`.
+4. Verificación: `curl -i http://localhost:3000/requests/3`
+5. Observado: La solicitud 3 mantiene su `status` original en `"open"`. El `UPDATE` que se había ejecutado en memoria fue revertido exitosamente mediante el comando SQL `ROLLBACK`.
+6. Reversión: Eliminé la línea de error simulado del código y reinicié el servidor, restaurando la operación normal de la API.

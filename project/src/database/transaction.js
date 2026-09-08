@@ -17,6 +17,19 @@
 import { pool } from "./pool.js";
 
 export async function withTransaction(work) {
-  // TODO: implement following the contract above.
-  throw new Error("withTransaction is not implemented yet.");
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    
+    // pasa el cliente prestado a la función
+    const result = await work(client);
+    
+    await client.query("COMMIT");
+    return result;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error; // relanza el error
+  } finally {
+    client.release();
+  }
 }

@@ -1,18 +1,26 @@
-// TODO: the single bridge between SQL rows (snake_case) and the HTTP
-// representation (camelCase). A row is not automatically the response.
-//
-// Contracts:
-//   mapRequestRow(row)  -> { id, title, description, priority, status,
-//                            createdAt, updatedAt }
-//   mapHistoryRow(row)  -> { previousStatus, newStatus, changedAt }
+// El puente único entre las filas SQL (snake_case) y la representación HTTP (camelCase).
+// Ninguna fila cruda debe llegar al cliente.
 
 export function mapRequestRow(row) {
-  // TODO: translate created_at -> createdAt and updated_at -> updatedAt,
-  // keeping every other field the contract promises.
-  throw new Error("mapRequestRow is not implemented yet.");
+  if (!row) return null;
+  
+  return {
+    id: Number(row.id),
+    title: row.title,
+    description: row.description,
+    priority: row.priority,
+    status: row.status,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
 }
 
 export function mapHistoryRow(row) {
-  // TODO: translate previous_status, new_status and changed_at.
-  throw new Error("mapHistoryRow is not implemented yet.");
+  if (!row) return null;
+
+  return {
+    previousStatus: row.previous_status,
+    newStatus: row.new_status,
+    changedAt: row.changed_at
+  };
 }
