@@ -19,15 +19,22 @@ import { pool } from '../../database/pool.js';
 
 export async function findByEmail(email, db = pool) {
   // TODO (station 2)
-  throw new Error('TODO: findByEmail is not implemented yet.');
+  const result = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+  return result.rows[0] || null;
 }
 
 export async function findById(id, db = pool) {
   // TODO (station 2)
-  throw new Error('TODO: findById is not implemented yet.');
+  const result = await db.query('SELECT * FROM users WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 export async function insertUser({ email, passwordHash }, db = pool) {
   // TODO (station 2)
-  throw new Error('TODO: insertUser is not implemented yet.');
+  const result = await db.query(
+    'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING *',
+    [email, passwordHash]
+  );
+  return result.rows[0];
 }
+

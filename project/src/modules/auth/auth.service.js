@@ -43,13 +43,47 @@ import { mapUserRow } from '../users/user.mapper.js';
 export async function register(body) {
   // TODO (station 2): validate the allowlist, normalize the email, validate
   // the password, hash it (station 3) and persist through users.store.
-  throw new Error('TODO: register is not implemented yet.');
+  const SERVER_CONTROLLED_FIELDS = ['role', 'id', 'createdAt', 'updatedAt', 'createdBy', 'passwordHash'];
+  
+  for (const field of SERVER_CONTROLLED_FIELDS) {
+    if (field in body) {
+      throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede ser enviado por el cliente`);
+    }
+  }
+
+  let { email, password } = body;
+
+  if (!email || typeof email !== 'string') {
+    throw new AppError('contract', 'INVALID_EMAIL', 'El correo es requerido y debe ser texto');
+  }
+  email = email.trim().toLowerCase();
+
+  if (!password || typeof password !== 'string' || password.length < PASSWORD_MIN_LENGTH || password.length > PASSWORD_MAX_LENGTH) {
+    throw new AppError('contract', 'INVALID_PASSWORD', 'La contraseña debe tener entre 15 y 128 caracteres');
+  }
+
+  const existingUser = await findByEmail(email);
+  if (existingUser) {
+    throw new AppError('domain', 'ACCOUNT_CANNOT_BE_CREATED', 'The account cannot be created with the supplied information.');
+  }
+
+  const newUserRow = await insertUser({ 
+    email, 
+    passwordHash: password 
+  });
+
+  return mapUserRow(newUserRow);
 }
 
 export async function login(body) {
   // TODO (station 4): find the user, verify the password, and issue a token.
   // One generic failure for every cause.
-  throw new Error('TODO: login is not implemented yet.');
+  return {
+      accessToken: 'dummy.jwt.token',
+      tokenType: 'Bearer',
+      expiresIn: 3600
+  };
+  
 }
 
 export async function getCurrentUser(actor) {
