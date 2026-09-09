@@ -1,9 +1,11 @@
-// El puente único entre las filas SQL (snake_case) y la representación HTTP (camelCase).
-// Ninguna fila cruda debe llegar al cliente.
+// The single bridge between SQL rows (snake_case) and the HTTP
+// representation the contract promises (camelCase). A row is not
+// automatically the HTTP response.
+//
+// STARTER NOTE — Station 6: once created_by and changed_by exist in the
+// rows, expose them here as createdBy / changedBy. Nothing else changes.
 
 export function mapRequestRow(row) {
-  if (!row) return null;
-  
   return {
     id: Number(row.id),
     title: row.title,
@@ -16,8 +18,6 @@ export function mapRequestRow(row) {
 }
 
 export function mapHistoryRow(row) {
-  if (!row) return null;
-
   return {
     previousStatus: row.previous_status,
     newStatus: row.new_status,

@@ -1,35 +1,22 @@
-// TODO: unit-of-work helper. Contract:
-//
-//   withTransaction(work) -> Promise<result of work(client)>
-//
-//   1. Borrow ONE client from the pool (pool.connect()).
-//   2. BEGIN.
-//   3. Run `await work(client)` — every query inside the unit must use
-//      this client. pool.query() would grab a different connection and
-//      silently escape the transaction.
-//   4. COMMIT and return the result.
-//   5. On any error: ROLLBACK, then re-throw (reverting is not hiding).
-//   6. finally: client.release() — always, success or failure.
-//
-// Reference: the transaction block from the class slides and
-// https://node-postgres.com/features/transactions
-
+// Runs a unit of work inside a single transaction. Every query inside the
+// unit MUST use the client passed to `work` — pool.query() could grab a
+// different connection and silently escape the transaction.
 import { pool } from "./pool.js";
 
 export async function withTransaction(work) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    
-    // pasa el cliente prestado a la función
     const result = await work(client);
-    
     await client.query("COMMIT");
     return result;
   } catch (error) {
     await client.query("ROLLBACK");
-    throw error; // relanza el error
+    // Reverting is not hiding: the caller still needs to answer the request.
+    throw error;
   } finally {
+    // Always return the loan — releasing gives the connection back to the
+    // pool; it does not close the database.
     client.release();
   }
 }

@@ -1,106 +1,121 @@
-# Contrato HTTP — Request API v3 (solución de referencia)
+# Contrato HTTP — Request API v5 (solución de referencia)
 
-## Recurso
+## Qué cambió respecto de la v4
 
-Una **solicitud de mantenimiento** (`request`): un problema reportado que el equipo debe
-atender a lo largo de un ciclo de vida controlado.
+* Tres endpoints nuevos: `POST /auth/register`, `POST /auth/login`, `GET /auth/me`.
+* **Todos los endpoints de `/requests` ahora exigen `Authorization: Bearer <token>`.**
+* La conversación de los endpoints existentes conserva su forma, pero cada respuesta
+  depende ahora de QUIÉN pregunta (rol y propiedad). Aparece `createdBy` en la
+  representación y `changedBy` en el historial.
+* Códigos nuevos: `401`, `403` y los códigos de contrato de auth.
+* Forma de error invariable: `{ "error": { "code", "message" } }`.
 
-### Forma del recurso
+## Actores
 
-| Campo         | Tipo   | Obligatorio | Quién lo asigna | Notas                                        |
-| ------------- | ------ | ----------- | --------------- | -------------------------------------------- |
-| `id`          | number | sí          | servidor        | contador en memoria que solo avanza          |
-| `title`       | string | sí          | cliente         | no vacío                                     |
-| `description` | string | no          | cliente         | `""` si no se envía                          |
-| `priority`    | string | no          | cliente         | `low` · `medium` · `high`; `medium` por defecto |
-| `status`      | string | sí          | servidor/regla  | `open` al crear; cambia solo por transiciones válidas |
-| `createdAt`   | string | sí          | servidor        | ISO 8601                                     |
-| `updatedAt`   | string | sí          | servidor        | ISO 8601; cambia en cada modificación        |
+Dos roles exactos: `requester` (crea y sigue sus solicitudes) y `agent` (las atiende).
+El registro SIEMPRE crea `requester`; la promoción a `agent` es una operación docente
+controlada (SQL), nunca un endpoint.
 
-### Estados y transiciones
+## Matriz de acceso (baseline fija del taller)
 
-Estados: `open`, `in_progress`, `resolved`, `closed`, `cancelled`.
+| Operación | Anónimo | Requester | Agent |
+| --------- | ------: | --------: | ----: |
+| `POST /auth/register` | Sí | Sí | Sí |
+| `POST /auth/login` | Sí | Sí | Sí |
+| `GET /auth/me` | No | Sí | Sí |
+| `GET /requests` | No | Propias | Todas |
+| `GET /requests/:id` | No | Propia | Todas |
+| `GET /requests/:id/history` | No | Propia | Todas |
+| `POST /requests` | No | Sí | No |
+| Editar título/descripción | No | Propia y abierta | No |
+| Cambiar prioridad | No | No | Sí |
+| Cambiar estado | No | No | Sí |
 
-Transiciones permitidas:
-
-* `open → in_progress` · `open → cancelled`
-* `in_progress → resolved` · `in_progress → cancelled`
-* `resolved → in_progress` · `resolved → closed`
-
-`closed` y `cancelled` son terminales: una solicitud en esos estados no admite ninguna
-modificación.
-
-### Formato de error (todas las respuestas de error)
-
-```json
-{ "error": { "code": "MACHINE_READABLE_CODE", "message": "Human readable message." } }
-```
-
-Códigos usados: `INVALID_FILTER`, `REQUEST_NOT_FOUND`, `TITLE_REQUIRED`, `INVALID_PRIORITY`,
-`INVALID_STATUS`, `NO_UPDATABLE_FIELDS`, `INVALID_STATUS_TRANSITION`,
-`REQUEST_IN_TERMINAL_STATUS`.
-
-> Nota de evolución: la versión de la clase 02 devolvía `{ "error": "mensaje" }`. Este es un
-> cambio potencialmente incompatible y se hace ahora, deliberadamente, mientras el único
-> consumidor es el propio equipo. Queda documentado aquí.
+Las solicitudes heredadas sin propietario (`createdBy: null`) son visibles solo para `agent`.
 
 ---
 
-## `GET /requests`
+## `POST /auth/register` (público)
 
-* **Intención**: consultar la colección, con filtros opcionales.
-* **Query**: `status` (uno de los cinco estados) · `priority` (`low|medium|high`). Combinables.
-* **Éxito**: `200` con arreglo (vacío incluido: `[]`).
-* **Errores**: `400 INVALID_FILTER` si el valor del filtro no pertenece al conjunto.
+* Body permitido: `email`, `password`. **Allowlist**: cualquier campo controlado por el
+  servidor (`role`, `id`, `createdAt`, `updatedAt`, `createdBy`, `passwordHash`)
+  produce `400 SERVER_CONTROLLED_FIELD` — nunca se ignora en silencio.
+* Email: requerido, formato básico, se normaliza con trim + lowercase, único.
+* Password: string de 15 a 128 caracteres (code points), Unicode y espacios permitidos,
+  sin reglas arbitrarias de composición. Jamás aparece en logs.
+* `201` → `{ "id": "<uuid>", "email": "ana@example.com", "role": "requester", "createdAt": "…" }`
+* `400 INVALID_EMAIL` · `400 INVALID_PASSWORD` · `409 ACCOUNT_CANNOT_BE_CREATED`
+  (genérico: la respuesta no confirma que el email exista).
 
-```bash
-curl -i "http://localhost:3000/requests?status=open&priority=high"
+## `POST /auth/login` (público)
+
+* Body: `email`, `password`.
+* `200` →
+
+```json
+{ "accessToken": "<jwt>", "tokenType": "Bearer", "expiresIn": 3600 }
 ```
 
-## `GET /requests/:id`
+* `401 INVALID_CREDENTIALS` con mensaje **idéntico** para email inexistente, password
+  incorrecta o cuenta no disponible. La respuesta nunca dice qué dato falló.
 
-* **Intención**: consultar una solicitud concreta.
-* **Éxito**: `200` con la solicitud.
-* **Errores**: `404 REQUEST_NOT_FOUND`.
+## `GET /auth/me` (protegido)
 
-## `POST /requests`
+* `200` → `{ "id": "<uuid>", "email": "…", "role": "requester" }`.
+* Nunca devuelve password, hash, salt ni material de firma.
 
-* **Intención**: registrar una solicitud nueva.
-* **Body**: `title` (obligatorio), `description` (opcional), `priority` (opcional).
-  Todo otro campo se ignora — incluido `status`: una solicitud nueva siempre comienza `open`.
-* **Éxito**: `201` con la solicitud completa (id, fechas y estado asignados por el servidor).
-* **Errores**: `400 TITLE_REQUIRED` · `400 INVALID_PRIORITY`.
+## JWT del taller
 
-```bash
-curl -i -X POST http://localhost:3000/requests \
-  -H "Content-Type: application/json" \
-  -d '{ "title": "Projector failure", "priority": "high" }'
-```
+Claims: `sub` (id del usuario), `role`, `iat`, `exp` (1 hora), `iss = backend-course-api`,
+`aud = backend-course-client`. Firma HS256 con `JWT_SECRET`. Verificar SIEMPRE firma,
+algoritmo, emisor, audiencia y expiración: decodificar permite leer; verificar permite
+confiar. El token está firmado, no cifrado — no lleva datos sensibles.
 
-## `PATCH /requests/:id`
+---
 
-* **Intención**: modificación parcial de una solicitud.
-* **Body**: uno o más de `title`, `description`, `priority`, `status`.
-  `id`, `createdAt` y `updatedAt` se ignoran si llegan.
-* **Éxito**: `200` con la solicitud actualizada (`updatedAt` refrescado).
-* **Errores**:
+## `GET /requests` (protegido)
 
-| Situación                          | Estado | Código                       |
-| ---------------------------------- | -----: | ---------------------------- |
-| Body sin campos modificables       |  `400` | `NO_UPDATABLE_FIELDS`        |
-| Título vacío                       |  `400` | `TITLE_REQUIRED`             |
-| Prioridad desconocida              |  `400` | `INVALID_PRIORITY`           |
-| Estado desconocido                 |  `400` | `INVALID_STATUS`             |
-| Solicitud inexistente              |  `404` | `REQUEST_NOT_FOUND`          |
-| Solicitud en estado terminal       |  `409` | `REQUEST_IN_TERMINAL_STATUS` |
-| Transición no permitida            |  `409` | `INVALID_STATUS_TRANSITION`  |
+* `requester`: solo sus solicitudes (scoping en SQL). `agent`: todas.
+* Filtros `?status=` y `?priority=` como en v4 · `400 INVALID_FILTER`.
 
-```bash
-curl -i -X PATCH http://localhost:3000/requests/1 \
-  -H "Content-Type: application/json" \
-  -d '{ "status": "in_progress" }'
-```
+## `GET /requests/:id` · `GET /requests/:id/history` (protegidos)
 
-## Decisiones registradas
+* `200` para el dueño o para `agent`.
+* `404 REQUEST_NOT_FOUND` si no existe **o si es ajena**: misma respuesta exacta,
+  para no revelar existencia (decisión documentada en `docs/decisions/003…`).
+* El historial incluye ahora `changedBy` (UUID del actor; `null` en eventos heredados).
 
-* [001 — Cancel requests instead of deleting them](decisions/001-cancel-instead-of-delete.md)
+## `POST /requests` (protegido, solo requester)
+
+* Body permitido: `title`, `description`, `priority`. `createdBy`, `status`, `id`,
+  fechas → `400 SERVER_CONTROLLED_FIELD`.
+* `createdBy` se toma del token. La solicitud nace `open` con historia `NULL → open`
+  y `changedBy` = creador, en una transacción.
+* `403 FORBIDDEN` si un `agent` intenta crear.
+
+## `PATCH /requests/:id` (protegido)
+
+* Campos actualizables: `title`, `description` (dueño + `open`), `priority`, `status`
+  (solo `agent`). Autorización **todo-o-nada**: un body mixto se rechaza completo (403)
+  sin aplicar cambios parciales.
+* Las reglas de la clase 3 siguen intactas para todos los roles:
+  `409 INVALID_STATUS_TRANSITION` · `409 REQUEST_IN_TERMINAL_STATUS`.
+* `changedBy` del body → `400 SERVER_CONTROLLED_FIELD`.
+
+## Mapa de errores
+
+| Código | Cuándo |
+| ------ | ------ |
+| `400` | contrato roto o campo controlado por el servidor |
+| `401 AUTHENTICATION_REQUIRED` | sin esquema Bearer |
+| `401 INVALID_TOKEN` | firma, emisor, audiencia o expiración inválidos |
+| `401 INVALID_CREDENTIALS` | login fallido (genérico) |
+| `403 FORBIDDEN` | actor identificado sin permiso para ESA operación |
+| `404 REQUEST_NOT_FOUND` | inexistente o ajeno (idénticos a propósito) |
+| `409` | duplicado de cuenta, transición inválida, estado terminal |
+| `500 INTERNAL_ERROR` | error inesperado (sin stack ni secretos) |
+| `503 DATABASE_UNAVAILABLE` | base inaccesible |
+
+Criterio: `401` cuando no hay identidad confiable; `403` cuando la identidad existe pero
+la operación está prohibida; `404` cuando no conviene revelar existencia; `409` para
+conflictos de estado.

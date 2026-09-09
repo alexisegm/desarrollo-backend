@@ -1,112 +1,151 @@
-// TODO: coordination layer. It applies process rules, validates transitions
-// and defines units of work. NO SQL and NO HTTP status codes here: throw
-// typed errors and let the routes translate them.
+// ============================================================================
+// STARTER NOTE — Stations 6 and 7 evolve this file. It arrives working
+// exactly as in class 04 (with AppError now imported from the shared
+// src/app-error.js). Target changes:
 //
-// Suggested shape (matches persistence-contract.md):
+//   * every exported operation receives the actor first:
+//       listRequests(actor, filters) · getRequest(actor, id)
+//       createRequest(actor, input) · patchRequest(actor, id, body)
+//       getHistory(actor, id)
+//   * reject server-controlled fields explicitly (400 SERVER_CONTROLLED_FIELD):
+//       id, createdBy, createdAt, updatedAt, changedBy — and status on POST;
+//   * createRequest: createdBy = actor.userId (never from the body); the
+//     birth history records the creator as changed_by;
+//   * listRequests: requester -> scope with { createdBy: actor.userId } in
+//     the store call; agent -> everything;
+//   * getRequest/getHistory: a foreign request answers the SAME 404 as a
+//     missing one (do not reveal existence);
+//   * patchRequest: apply the policy BEFORE writing, all-or-nothing (a
+//     mixed body with a forbidden field changes NOTHING -> 403), and pass
+//     actor.userId as changedBy to insertStatusHistory;
+//   * the class 3-4 rules stay: terminal states and transitions keep
+//     answering 409 — for every role.
 //
-//   listRequests(filters)  -> representations[]      (validate filter values -> contract error)
-//   getRequest(id)         -> representation         (missing -> resource error)
-//   createRequest(input)   -> representation
-//       - title required, priority validated, defaults applied
-//       - UNIT OF WORK: insert request + insert birth history (NULL -> open)
-//   patchRequest(id, body) -> representation
-//       - collect updatable fields; shape validation -> contract errors
-//       - UNIT OF WORK: read current + validate transition/terminal
-//         (domain errors) + update + insert history, all with ONE client
-//   getHistory(id)         -> history representations[] (missing request -> resource error)
-//
-// The AppError class below is ready: category decides the HTTP translation
-// ('contract' -> 400, 'resource' -> 404, 'domain' -> 409).
+// New error categories available: AppError('forbidden', 'FORBIDDEN', ...)
+// -> 403. See src/app-error.js.
+// ============================================================================
 
-
-
-// TODO: implement the five operations. Start with listRequests and
-// getRequest (read-only), then createRequest, then patchRequest.
 import { withTransaction } from '../../database/transaction.js';
-import { addRequest, insertStatusHistory, findRequestById, updateRequest, findHistory } from './requests.store.js';
-import { isTerminal, canTransition } from './request-status.js';
+import {
+  findAll,
+  findById,
+  insertRequest,
+  updateRequest,
+  insertStatusHistory,
+  findHistory
+} from './requests.store.js';
+import { mapRequestRow, mapHistoryRow } from './request.mapper.js';
+import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
+import { AppError } from '../../app-error.js';
 
-export class AppError extends Error {
-  constructor(category, code, message) {
-    super(message);
-    this.category = category;
-    this.code = code;
+const PRIORITIES = ['low', 'medium', 'high'];
+const UPDATABLE_FIELDS = ['title', 'description', 'priority', 'status'];
+
+function assertValidPriority(priority) {
+  if (!PRIORITIES.includes(priority)) {
+    throw new AppError('contract', 'INVALID_PRIORITY',
+      `Unknown priority "${priority}". Valid values: ${PRIORITIES.join(', ')}.`);
   }
 }
 
-const PRIORITIES = ['low', 'medium', 'high'];
+export async function listRequests(filters) {
+  if (filters.status !== undefined && !isValidStatus(filters.status)) {
+    throw new AppError('contract', 'INVALID_FILTER',
+      `Unknown status "${filters.status}". Valid values: ${STATUSES.join(', ')}.`);
+  }
+  if (filters.priority !== undefined && !PRIORITIES.includes(filters.priority)) {
+    throw new AppError('contract', 'INVALID_FILTER',
+      `Unknown priority "${filters.priority}". Valid values: ${PRIORITIES.join(', ')}.`);
+  }
+  const rows = await findAll(filters);
+  return rows.map(mapRequestRow);
+}
+
+export async function getRequest(id) {
+  const row = await findById(id);
+  if (!row) {
+    throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
+  }
+  return mapRequestRow(row);
+}
 
 export async function createRequest(input) {
-  const { title, description, priority } = input;
+  const { title, description, priority } = input ?? {};
 
-  
   if (typeof title !== 'string' || title.trim() === '') {
     throw new AppError('contract', 'TITLE_REQUIRED', 'A request needs a non-empty title.');
   }
+  if (priority !== undefined) assertValidPriority(priority);
 
-  if (priority !== undefined && !PRIORITIES.includes(priority)) {
-    throw new AppError('contract', 'INVALID_PRIORITY', `Unknown priority "${priority}". Valid values: ${PRIORITIES.join(', ')}.`);
-  }
-
-  
-  const request = await withTransaction(async (client) => {
-    
-    const newRequest = await addRequest({
+  // Creation is a unit of work: the request AND its birth history
+  // (NULL -> open) happen together or not at all.
+  const row = await withTransaction(async (client) => {
+    const created = await insertRequest({
       title: title.trim(),
-      description: typeof description === 'string' ? description : '',
+      description: typeof description === 'string' ? description : null,
       priority: priority ?? 'medium'
     }, client);
-
-     
-    await insertStatusHistory(newRequest.id, null, 'open', client);
-
-    return newRequest;
+    await insertStatusHistory(created.id, null, created.status, client);
+    return created;
   });
 
-  return request;
+  return mapRequestRow(row);
 }
 
-export async function patchRequest(id, changes) {
- 
-  return await withTransaction(async (client) => {
-    
-    const current = await findRequestById(id, client);
+export async function patchRequest(id, body) {
+  const changes = {};
+  for (const field of UPDATABLE_FIELDS) {
+    if (body?.[field] !== undefined) changes[field] = body[field];
+  }
 
+  if (Object.keys(changes).length === 0) {
+    throw new AppError('contract', 'NO_UPDATABLE_FIELDS',
+      `The body must include at least one of: ${UPDATABLE_FIELDS.join(', ')}.`);
+  }
+  if (changes.title !== undefined && (typeof changes.title !== 'string' || changes.title.trim() === '')) {
+    throw new AppError('contract', 'TITLE_REQUIRED', 'The title cannot be empty.');
+  }
+  if (changes.priority !== undefined) assertValidPriority(changes.priority);
+  if (changes.status !== undefined && !isValidStatus(changes.status)) {
+    throw new AppError('contract', 'INVALID_STATUS',
+      `Unknown status "${changes.status}". Valid values: ${STATUSES.join(', ')}.`);
+  }
+  if (changes.title !== undefined) changes.title = changes.title.trim();
+
+  // Read, validate against the current state, write and record history —
+  // all with the same client, as one unit of work.
+  const row = await withTransaction(async (client) => {
+    const current = await findById(id, client);
     if (!current) {
       throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
     }
 
-    
     if (isTerminal(current.status)) {
-      throw new AppError('domain', 'REQUEST_IN_TERMINAL_STATUS', `Request ${id} is ${current.status} and can no longer be modified.`);
+      throw new AppError('domain', 'REQUEST_IN_TERMINAL_STATUS',
+        `Request ${id} is ${current.status} and can no longer be modified.`);
     }
 
-    if (changes.status !== undefined && changes.status !== current.status) {
-      if (!canTransition(current.status, changes.status)) {
-        throw new AppError('domain', 'INVALID_STATUS_TRANSITION', `A request cannot move from ${current.status} to ${changes.status}.`);
-      }
+    const statusChanges = changes.status !== undefined && changes.status !== current.status;
+    if (statusChanges && !canTransition(current.status, changes.status)) {
+      throw new AppError('domain', 'INVALID_STATUS_TRANSITION',
+        `A request cannot move from ${current.status} to ${changes.status}.`);
     }
 
-    
     const updated = await updateRequest(id, changes, client);
-
-    
-    if (changes.status !== undefined && changes.status !== current.status) {
+    if (statusChanges) {
       await insertStatusHistory(id, current.status, changes.status, client);
-      
     }
-
     return updated;
   });
+
+  return mapRequestRow(row);
 }
 
 export async function getHistory(id) {
-
-  const current = await findRequestById(id);
-  if (!current) {
+  const request = await findById(id);
+  if (!request) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
-
-  
-  return await findHistory(id);
+  const rows = await findHistory(id);
+  return rows.map(mapHistoryRow);
 }

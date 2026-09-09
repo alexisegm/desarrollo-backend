@@ -1,12 +1,10 @@
-// Domain rules for the request lifecycle: which statuses exist, which are
-// terminal, and which transitions are allowed. This is the only place in the
-// system that knows the state machine.
+// Domain rules for the request lifecycle. Unchanged since class 03:
+// pure domain rules do not depend on where the data lives.
 
 export const STATUSES = ['open', 'in_progress', 'resolved', 'closed', 'cancelled'];
 
 export const TERMINAL_STATUSES = ['closed', 'cancelled'];
 
-// Missing pairs are forbidden: what has no arrow here cannot happen.
 const ALLOWED_TRANSITIONS = {
   open: ['in_progress', 'cancelled'],
   in_progress: ['resolved', 'cancelled'],

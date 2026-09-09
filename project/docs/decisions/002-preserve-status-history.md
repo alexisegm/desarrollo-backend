@@ -1,48 +1,71 @@
 # Preserve request status history
 
 ## Context
-What requirement produced this decision?
-La clase 03 y el dominio establecen la necesidad de auditar y preservar la historia de cada solicitud. Una simple actualización en una columna anula el conocimiento de cómo y cuándo ocurrió el cambio.
+
+Since class 03 the backlog carried the requirement "preserve the history of the request".
+With persistence in place (class 04), we had to decide whether the system remembers only the
+current status of each request or every transition it went through.
 
 ## Options
 
 ### Option 1: Keep only the current status
-**Benefits:**
-* Escritura simple y rápida: un solo `UPDATE` en la tabla principal.
-* Menor consumo de almacenamiento en la base de datos.
-* No requiere el uso de transacciones lógicas complejas.
 
-**Costs:**
-* Se pierde el rastro de auditoría completo. No hay forma de responder "quién o cuándo se cambió a in_progress".
-* Imposibilidad de medir métricas de negocio (ej. cuánto tiempo pasa una solicitud abierta antes de resolverse).
+Benefits:
+
+* Less data: one column, no extra table.
+* Less code: no second write, no transaction needed for status changes.
+* Every query stays trivially simple.
+
+Costs:
+
+* "When did this move to in_progress?" and "who reopened it?" become unanswerable.
+* Auditing and diagnosing a dispute ("it was already resolved last week") is impossible.
+* The information is destroyed at the moment of each change — it cannot be reconstructed later.
 
 ### Option 2: Store every status transition
-**Benefits:**
-* Trazabilidad absoluta: cada cambio es un evento inmutable registrado en el tiempo.
-* Permite responder a preguntas analíticas y reconstruir la línea temporal de cada problema.
 
-**Costs:**
-* Exige dos operaciones de escritura por cada cambio de estado.
-* Requiere implementar transacciones (`BEGIN`, `COMMIT`, `ROLLBACK`) para garantizar que ambas escrituras sean atómicas y evitar inconsistencias.
-* Mayor complejidad arquitectónica y consumo de almacenamiento.
+Benefits:
+
+* Complete, queryable history per request, including its birth (`NULL → open`).
+* Auditing, diagnosis and future metrics (time in each status) become possible.
+* The foreign key ties every event to its request with database-level integrity.
+
+Costs:
+
+* A second table, a second write on every status change, and the code to keep them aligned.
+* A consistency problem appears: a status change without its history row (or vice versa)
+  makes the database lie. This forces the change to run inside a transaction.
+* Storage grows with every transition (acceptable at this scale; revisit if it ever isn't).
 
 ## Decision
-Which option did we select and why?
-**Option 2**. Decidimos almacenar cada transición en la tabla `request_status_history`. El dominio de mantenimiento requiere auditoría y control de tiempos; sacrificar la historia por simplicidad técnica rompería el requerimiento principal.
+
+Option 2. `request_status_history` stores one row per transition. Creation records
+`NULL → open`; every later status change records `previous → new`. The status update and the
+history insert run inside a single transaction (same client, `BEGIN`/`COMMIT`/`ROLLBACK`) so
+both happen or neither does.
 
 ## Consequences
 
-**What do we gain?**
-Trazabilidad completa. El historial exacto de cada solicitud desde su nacimiento hasta su estado terminal, posibilitando auditorías futuras.
+What do we gain?
 
-**What additional data and code appear?**
-Aparece una nueva tabla `request_status_history` con su clave foránea. En el código, aparece un orquestador transaccional (`withTransaction`) para garantizar que el `UPDATE` en `requests` y el `INSERT` en el historial actúen como un solo bloque lógico.
+* `GET /requests/:id/history` and honest answers about the past.
+* Auditability that survives restarts and reaches every instance.
 
-**What consistency problem must be handled?**
-El riesgo de escrituras parciales. Si el estado cambia pero el historial falla, la base miente silenciosamente. Obliga al uso de un único cliente TCP para ejecutar un `ROLLBACK` y abortar ambas operaciones si alguna falla.
+What additional data and code appear?
 
-**What queries become possible?**
-`SELECT previous_status, new_status, changed_at FROM request_status_history WHERE request_id = $1` permite reconstruir la línea de vida de cualquier solicitud.
+* The 002 migration, `insertStatusHistory` in the store, and the transactional unit in the
+  service.
 
-**What may need to change later?**
-Si el sistema crece, podríamos necesitar un mecanismo para archivar historiales muy antiguos o crear índices específicos sobre `changed_at` para optimizar consultas de reportes mensuales.
+What consistency problem must be handled?
+
+* Two writes forming one logical unit — handled with `withTransaction`; a failure in either
+  write rolls back both.
+
+What queries become possible?
+
+* Full timeline per request; later: time-per-status metrics, reopened-request counts.
+
+What may need to change later?
+
+* If history grows large, an index on `request_status_history(request_id)` justified by the
+  history query, or an archival policy — each as its own documented decision.
