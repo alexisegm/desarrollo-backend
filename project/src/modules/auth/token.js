@@ -23,12 +23,12 @@ if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET is required.');
 }
 
-const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET);
-const ALGORITHM = 'HS256';
-const ISSUER = process.env.JWT_ISSUER ?? 'backend-course-api';
-const AUDIENCE = process.env.JWT_AUDIENCE ?? 'backend-course-client';
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'super-secret-key-change-me-in-production');
 
-export const TOKEN_TTL_SECONDS = Number(process.env.JWT_TTL_SECONDS ?? 3600);
+const ISSUER = 'backend-course-api';
+const AUDIENCE = 'backend-course-client';
+
+export const TOKEN_TTL_SECONDS = 3600;
 
 export async function issueToken(user) {
   // TODO (station 4): build and sign the token. Partial sketch:
@@ -39,11 +39,29 @@ export async function issueToken(user) {
   //     /* issued-at, expiration (issuedAt + TOKEN_TTL_SECONDS), issuer,
   //        audience — see the jose documentation */
   //     .sign(SECRET_KEY);
-  throw new Error('TODO: issueToken is not implemented yet.');
+  const now = Math.floor(Date.now() / 1000);
+
+  const jwt = await new SignJWT({ role: user.role })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setSubject(String(user.id))
+    .setIssuedAt(now)
+    .setExpirationTime(now + TOKEN_TTL_SECONDS)
+    .setIssuer(ISSUER)
+    .setAudience(AUDIENCE)
+    .sign(SECRET_KEY);
+    
+  return jwt;
 }
 
 export async function verifyToken(token) {
   // TODO (station 4/5): verify — not decode. jwtVerify(token, SECRET_KEY,
   // { algorithms, issuer, audience }) returns { payload } or throws.
-  throw new Error('TODO: verifyToken is not implemented yet.');
+
+  const { payload } = await jwtVerify(token, SECRET_KEY, {
+    issuer: ISSUER,
+    audience: AUDIENCE,
+    algorithms: ['HS256'],
+  });
+
+  return payload;
 }

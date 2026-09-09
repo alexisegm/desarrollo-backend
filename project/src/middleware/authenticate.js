@@ -25,5 +25,23 @@ import { verifyToken } from '../modules/auth/token.js';
 
 export async function authenticate(req, res, next) {
   // TODO (station 5)
-  respondError(res, new Error('TODO: authenticate is not implemented yet.'));
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      throw new AppError('auth', 'AUTHENTICATION_REQUIRED', 'Token requerido.');
+    }
+    const token = authHeader.split(' ')[1];
+    try {
+      const payload = await verifyToken(token);
+      req.auth = {
+        userId: payload.sub,
+        role: payload.role,
+      };
+      next();
+    } catch (error) {
+      throw new AppError('auth', 'INVALID_TOKEN', 'Token inválido o expirado.');
+    }
+  } catch (error) {
+    respondError(res, error);
+  }
 }

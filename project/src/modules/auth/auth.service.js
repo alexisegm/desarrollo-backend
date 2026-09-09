@@ -93,11 +93,14 @@ export async function login(body) {
   if (!isValid) {
     throw new AppError('auth', 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
   }
+  const user = mapUserRow(userRow);
+
+  const accessToken = await issueToken(user);
 
   return {
-      accessToken: 'dummy.jwt.token',
+      accessToken,
       tokenType: 'Bearer',
-      expiresIn: 3600
+      expiresIn: TOKEN_TTL_SECONDS
   };
 }
 
