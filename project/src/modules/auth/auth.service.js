@@ -47,7 +47,7 @@ export async function register(body) {
   
   for (const field of SERVER_CONTROLLED_FIELDS) {
     if (field in body) {
-      throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede ser enviado por el cliente`);
+      throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede ser enviado por el cliente.`);
     }
   }
 
@@ -64,12 +64,15 @@ export async function register(body) {
 
   const existingUser = await findByEmail(email);
   if (existingUser) {
-    throw new AppError('domain', 'ACCOUNT_CANNOT_BE_CREATED', 'The account cannot be created with the supplied information.');
+    throw new AppError('domain', 'ACCOUNT_CANNOT_BE_CREATED', 'No se pudo crear la cuenta.');
   }
+
+  const hashedPassword = await hashPassword(password);
+
 
   const newUserRow = await insertUser({ 
     email, 
-    passwordHash: password 
+    passwordHash: hashedPassword
   });
 
   return mapUserRow(newUserRow);
@@ -78,12 +81,24 @@ export async function register(body) {
 export async function login(body) {
   // TODO (station 4): find the user, verify the password, and issue a token.
   // One generic failure for every cause.
+  const { email, password } = body;
+  const userRow = await findByEmail(email);
+
+  if (!userRow) {
+    throw new AppError('auth', 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
+  }
+
+  const isValid = await verifyPassword(password, userRow.password_hash);
+  
+  if (!isValid) {
+    throw new AppError('auth', 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
+  }
+
   return {
       accessToken: 'dummy.jwt.token',
       tokenType: 'Bearer',
       expiresIn: 3600
   };
-  
 }
 
 export async function getCurrentUser(actor) {
