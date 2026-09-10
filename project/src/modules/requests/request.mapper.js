@@ -12,6 +12,7 @@ export function mapRequestRow(row) {
     description: row.description,
     priority: row.priority,
     status: row.status,
+    createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };

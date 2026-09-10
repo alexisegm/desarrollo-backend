@@ -26,20 +26,14 @@
 // ============================================================================
 
 import { withTransaction } from '../../database/transaction.js';
-import {
-  findAll,
-  findById,
-  insertRequest,
-  updateRequest,
-  insertStatusHistory,
-  findHistory
-} from './requests.store.js';
+import * as store from './requests.store.js';
 import { mapRequestRow, mapHistoryRow } from './request.mapper.js';
 import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
 import { AppError } from '../../app-error.js';
 
 const PRIORITIES = ['low', 'medium', 'high'];
 const UPDATABLE_FIELDS = ['title', 'description', 'priority', 'status'];
+const SERVER_CONTROLLED = ['id', 'createdBy', 'createdAt', 'updatedAt', 'changedBy'];
 
 function assertValidPriority(priority) {
   if (!PRIORITIES.includes(priority)) {
@@ -48,7 +42,7 @@ function assertValidPriority(priority) {
   }
 }
 
-export async function listRequests(filters) {
+export async function listRequests(actor, filters = {}) {
   if (filters.status !== undefined && !isValidStatus(filters.status)) {
     throw new AppError('contract', 'INVALID_FILTER',
       `Unknown status "${filters.status}". Valid values: ${STATUSES.join(', ')}.`);
@@ -57,20 +51,39 @@ export async function listRequests(filters) {
     throw new AppError('contract', 'INVALID_FILTER',
       `Unknown priority "${filters.priority}". Valid values: ${PRIORITIES.join(', ')}.`);
   }
-  const rows = await findAll(filters);
+
+  const storeFilters = { ...filters };
+  
+  // Aislamiento: si es requester, limitamos la búsqueda a sus solicitudes
+  if (actor.role === 'requester') {
+    storeFilters.createdBy = actor.userId;
+  }
+
+  const rows = await store.findAllRequests(storeFilters);
   return rows.map(mapRequestRow);
 }
 
-export async function getRequest(id) {
-  const row = await findById(id);
-  if (!row) {
+export async function getRequest(actor, id) {
+  const row = await store.findById(id);
+  
+  // IDOR Protection y NotFound general (No revelar existencia)
+  if (!row || (actor.role === 'requester' && row.created_by !== actor.userId)) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
+  
   return mapRequestRow(row);
 }
 
-export async function createRequest(input) {
+export async function createRequest(actor, input) {
   const { title, description, priority } = input ?? {};
+
+  // Rechazo explícito de campos controlados por el servidor (incluyendo status en POST)
+  const POST_SERVER_CONTROLLED = [...SERVER_CONTROLLED, 'status'];
+  for (const field of POST_SERVER_CONTROLLED) {
+    if (field in (input ?? {})) {
+      throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede enviarse.`);
+    }
+  }
 
   if (typeof title !== 'string' || title.trim() === '') {
     throw new AppError('contract', 'TITLE_REQUIRED', 'A request needs a non-empty title.');
@@ -80,19 +93,28 @@ export async function createRequest(input) {
   // Creation is a unit of work: the request AND its birth history
   // (NULL -> open) happen together or not at all.
   const row = await withTransaction(async (client) => {
-    const created = await insertRequest({
+    const created = await store.insertRequest({
       title: title.trim(),
       description: typeof description === 'string' ? description : null,
-      priority: priority ?? 'medium'
+      priority: priority ?? 'medium',
+      createdBy: actor.userId // El dueño proviene del token
     }, client);
-    await insertStatusHistory(created.id, null, created.status, client);
+    
+    await store.insertStatusHistory(created.id, null, created.status, actor.userId, client);
     return created;
   });
 
   return mapRequestRow(row);
 }
 
-export async function patchRequest(id, body) {
+export async function patchRequest(actor, id, body) {
+  // 1. Validar campos controlados por el servidor ANTES de hacer nada (All-or-nothing)
+  for (const field of SERVER_CONTROLLED) {
+    if (field in (body ?? {})) {
+      throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede enviarse.`);
+    }
+  }
+
   const changes = {};
   for (const field of UPDATABLE_FIELDS) {
     if (body?.[field] !== undefined) changes[field] = body[field];
@@ -102,6 +124,7 @@ export async function patchRequest(id, body) {
     throw new AppError('contract', 'NO_UPDATABLE_FIELDS',
       `The body must include at least one of: ${UPDATABLE_FIELDS.join(', ')}.`);
   }
+  
   if (changes.title !== undefined && (typeof changes.title !== 'string' || changes.title.trim() === '')) {
     throw new AppError('contract', 'TITLE_REQUIRED', 'The title cannot be empty.');
   }
@@ -115,8 +138,10 @@ export async function patchRequest(id, body) {
   // Read, validate against the current state, write and record history —
   // all with the same client, as one unit of work.
   const row = await withTransaction(async (client) => {
-    const current = await findById(id, client);
-    if (!current) {
+    const current = await store.findById(id, client);
+    
+    // IDOR y NotFound protection
+    if (!current || (actor.role === 'requester' && current.created_by !== actor.userId)) {
       throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
     }
 
@@ -131,9 +156,9 @@ export async function patchRequest(id, body) {
         `A request cannot move from ${current.status} to ${changes.status}.`);
     }
 
-    const updated = await updateRequest(id, changes, client);
+    const updated = await store.updateRequest(id, changes, client);
     if (statusChanges) {
-      await insertStatusHistory(id, current.status, changes.status, client);
+      await store.insertStatusHistory(id, current.status, changes.status, actor.userId, client);
     }
     return updated;
   });
@@ -141,11 +166,14 @@ export async function patchRequest(id, body) {
   return mapRequestRow(row);
 }
 
-export async function getHistory(id) {
-  const request = await findById(id);
-  if (!request) {
+export async function getHistory(actor, id) {
+  const requestRow = await store.findById(id);
+  
+  // Regla de propiedad de historial (IDOR y NotFound)
+  if (!requestRow || (actor.role === 'requester' && requestRow.created_by !== actor.userId)) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
-  const rows = await findHistory(id);
+  
+  const rows = await store.findHistory(id);
   return rows.map(mapHistoryRow);
 }
