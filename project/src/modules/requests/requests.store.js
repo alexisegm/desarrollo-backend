@@ -26,8 +26,6 @@ const REQUEST_COLUMNS = `
 `;
 
 export async function findAllRequests(filters = {}, db = pool) {
-  // Values are parameterized; column names come from this file only —
-  // identifiers are never derived from client input.
   let query = 'SELECT * FROM requests';
   const conditions = [];
   const values = [];
@@ -49,7 +47,6 @@ export async function findAllRequests(filters = {}, db = pool) {
     query += ` WHERE ${conditions.join(' AND ')}`;
   }
 
-  // Se añade ORDER BY para coincidir con el comportamiento esperado
   query += ' ORDER BY id';
   
   const result = await db.query(query, values);
@@ -65,7 +62,6 @@ export async function findById(id, db = pool) {
 }
 
 export async function insertRequest({ title, description, priority, createdBy }, db = pool) {
-  // The database generates id, status default, and both timestamps.
   const result = await db.query(
     `INSERT INTO requests (title, description, priority, created_by)
      VALUES ($1, $2, $3, $4)

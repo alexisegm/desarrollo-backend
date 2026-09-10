@@ -27,6 +27,7 @@
 
 import { withTransaction } from '../../database/transaction.js';
 import * as store from './requests.store.js';
+import * as policy from './request.policy.js';
 import { mapRequestRow, mapHistoryRow } from './request.mapper.js';
 import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
 import { AppError } from '../../app-error.js';
@@ -54,7 +55,6 @@ export async function listRequests(actor, filters = {}) {
 
   const storeFilters = { ...filters };
   
-  // Aislamiento: si es requester, limitamos la búsqueda a sus solicitudes
   if (actor.role === 'requester') {
     storeFilters.createdBy = actor.userId;
   }
@@ -66,8 +66,7 @@ export async function listRequests(actor, filters = {}) {
 export async function getRequest(actor, id) {
   const row = await store.findById(id);
   
-  // IDOR Protection y NotFound general (No revelar existencia)
-  if (!row || (actor.role === 'requester' && row.created_by !== actor.userId)) {
+  if (!row || !policy.canViewRequest(actor, { createdBy: row.created_by })) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
   
@@ -75,9 +74,12 @@ export async function getRequest(actor, id) {
 }
 
 export async function createRequest(actor, input) {
+  if (!policy.canCreateRequest(actor)) {
+    throw new AppError('forbidden', 'FORBIDDEN', 'No tienes permiso para crear solicitudes.');
+  }
+
   const { title, description, priority } = input ?? {};
 
-  // Rechazo explícito de campos controlados por el servidor (incluyendo status en POST)
   const POST_SERVER_CONTROLLED = [...SERVER_CONTROLLED, 'status'];
   for (const field of POST_SERVER_CONTROLLED) {
     if (field in (input ?? {})) {
@@ -90,14 +92,12 @@ export async function createRequest(actor, input) {
   }
   if (priority !== undefined) assertValidPriority(priority);
 
-  // Creation is a unit of work: the request AND its birth history
-  // (NULL -> open) happen together or not at all.
   const row = await withTransaction(async (client) => {
     const created = await store.insertRequest({
       title: title.trim(),
       description: typeof description === 'string' ? description : null,
       priority: priority ?? 'medium',
-      createdBy: actor.userId // El dueño proviene del token
+      createdBy: actor.userId
     }, client);
     
     await store.insertStatusHistory(created.id, null, created.status, actor.userId, client);
@@ -108,7 +108,7 @@ export async function createRequest(actor, input) {
 }
 
 export async function patchRequest(actor, id, body) {
-  // 1. Validar campos controlados por el servidor ANTES de hacer nada (All-or-nothing)
+  // 1. Validar campos controlados por el servidor ANTES de hacer nada
   for (const field of SERVER_CONTROLLED) {
     if (field in (body ?? {})) {
       throw new AppError('contract', 'SERVER_CONTROLLED_FIELD', `El campo ${field} no puede enviarse.`);
@@ -135,31 +135,62 @@ export async function patchRequest(actor, id, body) {
   }
   if (changes.title !== undefined) changes.title = changes.title.trim();
 
-  // Read, validate against the current state, write and record history —
-  // all with the same client, as one unit of work.
   const row = await withTransaction(async (client) => {
+    // 2. Visibilidad primero: Cargar la fila actual
     const current = await store.findById(id, client);
     
-    // IDOR y NotFound protection
-    if (!current || (actor.role === 'requester' && current.created_by !== actor.userId)) {
+    if (!current || !policy.canViewRequest(actor, { createdBy: current.created_by })) {
       throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
     }
 
+    // 3. Analizar qué intenta cambiar el cliente
+    const isEditingContent = 'title' in changes || 'description' in changes;
+    const isChangingPriority = 'priority' in changes;
+    const isChangingStatus = 'status' in changes;
+
+    // 4. Evaluar autorizaciones (políticas) -> Devolver 403 explícito
+    if (isEditingContent && !policy.canEditContent(actor, { 
+        createdBy: current.created_by, 
+        status: current.status 
+    })) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'No tienes permiso para editar el contenido.');
+    }
+
+    if (isChangingPriority && !policy.canChangePriority(actor)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'No tienes permiso para cambiar la prioridad.');
+    }
+
+    if (isChangingStatus && !policy.canChangeStatus(actor)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'No tienes permiso para cambiar el estado.');
+    }
+
+    // Prevención de body mixto: Si intenta operaciones contradictorias al mismo tiempo
+    if (isEditingContent && (isChangingPriority || isChangingStatus)) {
+      throw new AppError('forbidden', 'FORBIDDEN', 'Operación mixta no permitida.');
+    }
+
+    // 5. Máquina de estados (Reglas de dominio)
     if (isTerminal(current.status)) {
       throw new AppError('domain', 'REQUEST_IN_TERMINAL_STATUS',
         `Request ${id} is ${current.status} and can no longer be modified.`);
     }
 
-    const statusChanges = changes.status !== undefined && changes.status !== current.status;
+    const statusChanges = isChangingStatus && changes.status !== current.status;
     if (statusChanges && !canTransition(current.status, changes.status)) {
       throw new AppError('domain', 'INVALID_STATUS_TRANSITION',
         `A request cannot move from ${current.status} to ${changes.status}.`);
     }
 
-    const updated = await store.updateRequest(id, changes, client);
+    // 6. Ejecutar la actualización inyectando el changedBy del actor
+    const updated = await store.updateRequest(id, {
+      ...changes,
+      changedBy: actor.userId
+    }, client);
+    
     if (statusChanges) {
       await store.insertStatusHistory(id, current.status, changes.status, actor.userId, client);
     }
+    
     return updated;
   });
 
@@ -169,8 +200,7 @@ export async function patchRequest(actor, id, body) {
 export async function getHistory(actor, id) {
   const requestRow = await store.findById(id);
   
-  // Regla de propiedad de historial (IDOR y NotFound)
-  if (!requestRow || (actor.role === 'requester' && requestRow.created_by !== actor.userId)) {
+  if (!requestRow || !policy.canViewHistory(actor, { createdBy: requestRow.created_by })) {
     throw new AppError('resource', 'REQUEST_NOT_FOUND', `Request ${id} does not exist.`);
   }
   

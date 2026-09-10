@@ -22,6 +22,7 @@ export function mapHistoryRow(row) {
   return {
     previousStatus: row.previous_status,
     newStatus: row.new_status,
+    changedBy: row.changed_by,
     changedAt: row.changed_at
   };
 }
