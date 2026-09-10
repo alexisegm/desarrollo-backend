@@ -3,7 +3,7 @@ import express from 'express';
 import { corsPolicy } from './middleware/cors.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import requestsRoutes from './modules/requests/requests.routes.js';
-// TODO (station 5): import { authenticate } from './middleware/authenticate.js';
+import { authenticate } from './middleware/authenticate.js';
 
 const app = express();
 
@@ -21,6 +21,6 @@ app.use('/auth', authRoutes);
 // the module so authenticate runs first and builds req.auth (or answers
 // 401 and the router never runs):
 //   app.use('/requests', authenticate, requestsRoutes);
-app.use('/requests', requestsRoutes);
+app.use('/requests', authenticate, requestsRoutes);
 
 export default app;

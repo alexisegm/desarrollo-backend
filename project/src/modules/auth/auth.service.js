@@ -107,5 +107,9 @@ export async function login(body) {
 export async function getCurrentUser(actor) {
   // TODO (station 5): load the user behind actor.userId and answer only
   // id, email and role.
-  throw new Error('TODO: getCurrentUser is not implemented yet.');
+  const userRow = await findById(actor.userId);
+  if (!userRow) {
+    throw new AppError('auth', 'INVALID_TOKEN', 'El usuario ya no existe.');
+  }
+  return mapUserRow(userRow);
 }
