@@ -1,35 +1,58 @@
+// frontend/app/services/api.js
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+export class ApiError extends Error {
+    constructor(status, message) {
+        super(message);
+        this.status = status;
+        this.name = 'ApiError';
+    }
+}
+
 export const authService = {
   async login(email, password) {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    try {
+        const response = await fetch(`${API_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password }),
+        });
 
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        const errorMsg = data.error?.message || data.message || 'Error al iniciar sesión';
-        throw new Error(errorMsg);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const errorMsg = data.error?.message || data.message || 'Error al iniciar sesión';
+            throw new ApiError(response.status, errorMsg);
+        }
+        return response.json(); 
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+        }
+        throw error;
     }
-    return response.json(); 
   },
 
   async register(name, email, password) {
-    const response = await fetch(`${API_URL}/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
-    });
+    try {
+        const response = await fetch(`${API_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, email, password }),
+        });
 
-    if (!response.ok) {
-        const data = await response.json().catch(() => ({}));
-        const errorMsg = data.error?.message || data.message || 'Error al registrar usuario';
-        throw new Error(errorMsg);
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const errorMsg = data.error?.message || data.message || 'Error al registrar usuario';
+            throw new ApiError(response.status, errorMsg);
+        }
+        return response.json();
+    } catch (error) {
+        if (error instanceof TypeError) {
+            throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+        }
+        throw error;
     }
-    return response.json();
   }
 };
 
@@ -46,85 +69,129 @@ export const tokenService = {
 
 export const requestService = {
     async getRequests(queryString = '') {
-        const response = await fetch(`${API_URL}/requests${queryString}`, {
-            headers: tokenService.getAuthHeaders()
-        });
-        
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error?.message || data.message || `Error ${response.status}`);
+        try {
+            const response = await fetch(`${API_URL}/requests${queryString}`, {
+                headers: tokenService.getAuthHeaders()
+            });
+            
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new ApiError(response.status, data.error?.message || data.message || `Error ${response.status}`);
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
         }
-        return response.json();
     },
 
     async create(title, description) {
-        const response = await fetch(`${API_URL}/requests`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                ...tokenService.getAuthHeaders()
-            },
-            body: JSON.stringify({ title, description })
-        });
+        try {
+            const response = await fetch(`${API_URL}/requests`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...tokenService.getAuthHeaders()
+                },
+                body: JSON.stringify({ title, description })
+            });
 
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error?.message || data.message || 'Error al crear solicitud');
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new ApiError(response.status, data.error?.message || data.message || 'Error al crear solicitud');
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
         }
-        return response.json();
     },
 
     async getById(id) {
-        const response = await fetch(`${API_URL}/requests/${id}`, {
-            headers: tokenService.getAuthHeaders()
-        });
-        if (!response.ok) throw new Error('Error al obtener detalles');
-        return response.json();
+        try {
+            const response = await fetch(`${API_URL}/requests/${id}`, {
+                headers: tokenService.getAuthHeaders()
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new ApiError(response.status, data.error?.message || data.message || 'Error al obtener detalles');
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
+        }
     },
 
     async getHistory(id) {
-        const response = await fetch(`${API_URL}/requests/${id}/history`, {
-            headers: tokenService.getAuthHeaders()
-        });
-        if (!response.ok) throw new Error('Error al obtener el historial');
-        return response.json();
+        try {
+            const response = await fetch(`${API_URL}/requests/${id}/history`, {
+                headers: tokenService.getAuthHeaders()
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new ApiError(response.status, data.error?.message || data.message || 'Error al obtener el historial');
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
+        }
     },
 
     async update(id, title, description) {
-        const response = await fetch(`${API_URL}/requests/${id}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                ...tokenService.getAuthHeaders()
-            },
-            body: JSON.stringify({ title, description })
-        });
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            throw new Error(data.error?.message || data.message || 'Error al actualizar');
+        try {
+            const response = await fetch(`${API_URL}/requests/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...tokenService.getAuthHeaders()
+                },
+                body: JSON.stringify({ title, description })
+            });
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                throw new ApiError(response.status, data.error?.message || data.message || 'Error al actualizar');
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
         }
-        return response.json();
-
     },
 
     async manageByAgent(id, status, priority) {
-        const response = await fetch(`${API_URL}/requests/${id}`, {
-            method: 'PATCH',
-            headers: {
-                'Content-Type': 'application/json',
-                ...tokenService.getAuthHeaders()
-            },
-            body: JSON.stringify({ status, priority })
-        });
-        if (!response.ok) {
-            const data = await response.json().catch(() => ({}));
-            const errorMsg = data.error?.message || data.message || 'Error al actualizar';
-
-            if (response.status === 409) {
-                throw new Error('Conflicto: Transición de estado no permitida.');   
+        try {
+            const response = await fetch(`${API_URL}/requests/${id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...tokenService.getAuthHeaders()
+                },
+                body: JSON.stringify({ status, priority })
+            });
+            
+            if (!response.ok) {
+                const data = await response.json().catch(() => ({}));
+                const errorMsg = data.error?.message || data.message || 'Error al actualizar';
+                throw new ApiError(response.status, errorMsg);
+            }
+            return response.json();
+        } catch (error) {
+            if (error instanceof TypeError) {
+                throw new ApiError(503, 'El servidor no está disponible o hay un error de red.');
+            }
+            throw error;
         }
-            throw new Error(errorMsg);
-        }
-        return response.json();
     }
 };

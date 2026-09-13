@@ -1,3 +1,5 @@
+// frontend/app/main.js
+
 import { authService, tokenService, requestService } from './services/api.js';
 
 const authPanel = document.getElementById('auth-panel');
@@ -49,6 +51,59 @@ const priorityMap = {
     'medium': 'Media',
     'high': 'Alta'
 };
+
+// Utilidad para evaluar códigos HTTP e inyectar mensajes específicos
+function getFriendlyErrorMessage(error) {
+    let mensajeVisible = error.message;
+
+    if (error.status) {
+        switch (error.status) {
+            case 400:
+                mensajeVisible = 'Datos inválidos. Por favor verifica los campos.';
+                break;
+            case 401:
+                mensajeVisible = 'Tu sesión ha expirado o no estás autorizado. Vuelve a iniciar sesión.';
+                tokenService.removeToken();
+                updateUI();
+                break;
+            case 403:
+                mensajeVisible = 'No tienes los permisos necesarios para esta acción.';
+                break;
+            case 404:
+                mensajeVisible = 'El recurso solicitado no fue encontrado.';
+                break;
+            case 409:
+                mensajeVisible = 'Conflicto de estado. La solicitud fue modificada recientemente o la transición no es permitida.';
+                break;
+            case 500:
+                mensajeVisible = 'Error interno del servidor. Intenta más tarde.';
+                break;
+            case 503:
+                mensajeVisible = 'Servidor inalcanzable. Revisa tu conexión a internet o intenta más tarde.';
+                break;
+        }
+    }
+    return mensajeVisible;
+}
+
+// Utilidad para inyectar feedback visual en cualquier formulario
+function showFormFeedback(formElement, message, isError = true) {
+    let feedbackEl = formElement.querySelector('.form-feedback');
+    if (!feedbackEl) {
+        feedbackEl = document.createElement('p');
+        feedbackEl.className = 'form-feedback';
+        feedbackEl.style.fontSize = '0.9rem';
+        feedbackEl.style.marginTop = '0.5rem';
+        formElement.appendChild(feedbackEl);
+    }
+    feedbackEl.textContent = message;
+    feedbackEl.style.color = isError ? '#ff6b6b' : '#51cf66';
+    feedbackEl.hidden = false;
+
+    if (!isError) {
+        setTimeout(() => { feedbackEl.hidden = true; }, 4000);
+    }
+}
 
 function showAuthFeedback(message, isError = true) {
     authFeedback.textContent = message;
@@ -112,7 +167,7 @@ loginForm.addEventListener('submit', async (e) => {
         updateUI();
         loginForm.reset();
     } catch (error) {
-        showAuthFeedback(`Error: ${error.message}`);
+        showAuthFeedback(getFriendlyErrorMessage(error));
     }
 });
 
@@ -136,7 +191,7 @@ registerForm.addEventListener('submit', async (e) => {
         }
         registerForm.reset();
     } catch (error) {
-        showAuthFeedback(`${error.message}`);
+        showAuthFeedback(getFriendlyErrorMessage(error));
     }
 });
 
@@ -186,7 +241,7 @@ async function loadRequests() {
             requestsList.appendChild(li);
         });
     } catch (error) {
-        requestsState.textContent = `Error al cargar: ${error.message}`;
+        requestsState.textContent = getFriendlyErrorMessage(error);
         requestsState.style.color = '#ff6b6b';
     }
 }
@@ -214,15 +269,20 @@ createRequestForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const formData = new FormData(createRequestForm);
     
+    // Limpiar mensaje anterior si lo hay
+    let existingFeedback = createRequestForm.querySelector('.form-feedback');
+    if (existingFeedback) existingFeedback.hidden = true;
+
     try {
         await requestService.create(
             formData.get('title'),
             formData.get('description')
         );
         createRequestForm.reset();
+        showFormFeedback(createRequestForm, 'Solicitud creada con éxito.', false);
         await loadRequests();
     } catch (error) {
-        alert(`Error: ${error.message}`); 
+        showFormFeedback(createRequestForm, getFriendlyErrorMessage(error));
     }
 });
 
@@ -239,6 +299,10 @@ window.openRequestDetail = async (id) => {
         
         requestsPanel.hidden = true;
         requestDetailPanel.hidden = false;
+        
+        // Limpiar feedback del formulario de edición al abrir
+        let existingFeedback = editRequestForm.querySelector('.form-feedback');
+        if (existingFeedback) existingFeedback.hidden = true;
 
         const displayStatus = statusMap[req.status] || req.status;
 
@@ -278,7 +342,9 @@ window.openRequestDetail = async (id) => {
         }
 
     } catch (error) {
-        alert(`Error al cargar detalles: ${error.message}`);
+        requestsState.textContent = getFriendlyErrorMessage(error);
+        requestsState.style.color = '#ff6b6b';
+        requestsState.hidden = false;
     }
 };
 
@@ -296,10 +362,10 @@ editRequestForm.addEventListener('submit', async (e) => {
 
     try {
         await requestService.update(id, title, description);
-        alert('Solicitud actualizada correctamente');
+        showFormFeedback(editRequestForm, 'Solicitud actualizada correctamente.', false);
         window.openRequestDetail(id);
     } catch (error) {
-        alert(`Error: ${error.message}`);
+        showFormFeedback(editRequestForm, getFriendlyErrorMessage(error));
     }
 });
 
@@ -344,7 +410,7 @@ async function loadAgentRequests() {
             agentRequestsList.appendChild(li);
         });
     } catch (error) {
-        agentRequestsState.textContent = `Error al cargar: ${error.message}`;
+        agentRequestsState.textContent = getFriendlyErrorMessage(error);
         agentRequestsState.style.color = '#ff6b6b';
     }
 }
@@ -412,7 +478,9 @@ window.openAgentRequestDetail = async (id) => {
         }
 
     } catch (error) {
-        alert(`Error al cargar detalles: ${error.message}`);
+        agentRequestsState.textContent = getFriendlyErrorMessage(error);
+        agentRequestsState.style.color = '#ff6b6b';
+        agentRequestsState.hidden = false;
     }
 };
 
@@ -444,7 +512,7 @@ agentManageForm.addEventListener('submit', async (e) => {
         
         await window.openAgentRequestDetail(id);
     } catch (error) {
-        agentManageFeedback.textContent = error.message;
+        agentManageFeedback.textContent = getFriendlyErrorMessage(error);
         agentManageFeedback.style.color = '#ff6b6b';
         agentManageFeedback.hidden = false;
     }
