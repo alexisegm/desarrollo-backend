@@ -96,6 +96,46 @@
       <ul id="agent-requests-list" class="request-list"></ul>
     </section>
 
+<!-- Panel de Detalle y Gestión del Agente -->
+    <section id="agent-request-detail-panel" class="panel" hidden>
+      <button id="agent-back-to-list-btn" style="margin-bottom: 1rem; background: #2a2f3d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">&larr; Volver a la lista</button>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2>Gestión de Solicitud</h2>
+          <span id="agent-detail-status-badge" style="font-size: 0.9rem; padding: 0.3rem 0.8rem; border-radius: 12px; background: #3d2a2f;"></span>
+      </div>
+
+      <div style="background: #161923; padding: 1rem; border-radius: 8px; border: 1px solid #2a2f3d; margin-top: 1rem; margin-bottom: 1.5rem;">
+        <h3 id="agent-detail-title" style="color: #4da6ff; margin-top: 0;"></h3>
+        <p id="agent-detail-description" style="color: #e8eaf0; white-space: pre-wrap; font-size: 0.95rem;"></p>
+      </div>
+
+      <form id="agent-manage-form" class="stack" style="padding-bottom: 1rem; border-bottom: 1px solid #2a2f3d;">
+        <input type="hidden" id="agent-manage-request-id">
+        <input type="hidden" id="agent-current-status">
+
+        <label>Prioridad 
+          <select id="agent-manage-priority" style="width: 100%; padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px;">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+          </select>
+        </label>
+        
+        <label>Nuevo Estado 
+          <select id="agent-manage-status" style="width: 100%; padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px;">
+            <!-- Opciones inyectadas dinámicamente según estado actual -->
+          </select>
+        </label>
+        
+        <button type="submit" id="agent-update-btn" style="background: #9b59b6;">Actualizar Solicitud</button>
+        <p id="agent-manage-feedback" style="font-size: 0.85rem; margin-top: 0.5rem;" hidden></p>
+      </form>
+
+      <h3 style="margin-top: 2rem; color: #a0a5b5;">Historial de Cambios</h3>
+      <ul id="agent-request-history-list" class="request-list"></ul>
+    </section>
+
     <!-- Panel de Detalle de Solicitud -->
     <section id="request-detail-panel" class="panel" hidden>
       <button id="back-to-list-btn" style="margin-bottom: 1rem; background: #2a2f3d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">&larr; Volver a la lista</button>

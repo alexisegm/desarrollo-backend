@@ -24,6 +24,31 @@ const agentFilterPriority = document.getElementById('agent-filter-priority');
 const agentApplyFiltersBtn = document.getElementById('agent-apply-filters-btn');
 const agentRequestsState = document.getElementById('agent-requests-state');
 const agentRequestsList = document.getElementById('agent-requests-list');
+const agentRequestDetailPanel = document.getElementById('agent-request-detail-panel');
+const agentBackToListBtn = document.getElementById('agent-back-to-list-btn');
+const agentManageForm = document.getElementById('agent-manage-form');
+const agentManageStatus = document.getElementById('agent-manage-status');
+const agentManageFeedback = document.getElementById('agent-manage-feedback');
+
+const validTransitions = {
+    'open': ['in_progress', 'resolved', 'closed'],
+    'in_progress': ['resolved', 'closed'],
+    'resolved': ['closed'],
+    'closed': [] 
+};
+
+const statusMap = {
+    'open': 'Abierto',
+    'in_progress': 'En Progreso',
+    'resolved': 'Resuelto',
+    'closed': 'Cerrado'
+};
+
+const priorityMap = {
+    'low': 'Baja',
+    'medium': 'Media',
+    'high': 'Alta'
+};
 
 function showAuthFeedback(message, isError = true) {
     authFeedback.textContent = message;
@@ -46,11 +71,10 @@ function updateUI() {
         try {
             const payloadBase64 = token.split('.')[1];
             const decodedPayload = JSON.parse(atob(payloadBase64));
-            const userRole = decodedPayload.role || 'requester'; // Por defecto requester si no hay rol
+            const userRole = decodedPayload.role || 'requester'; 
             
             sessionUser.textContent = `Rol: ${userRole}`;
 
-            // Bifurcación basada en el rol
             if (userRole === 'agent') {
                 requestsPanel.hidden = true;
                 agentPanel.hidden = false;
@@ -65,11 +89,10 @@ function updateUI() {
             agentPanel.hidden = true;
         }
     } else {
-        // No hay sesión
         authPanel.hidden = false;
         requestsPanel.hidden = true;
         agentPanel.hidden = true;
-        requestDetailPanel.hidden = true; // Asegurar que el detalle también se oculte al salir
+        requestDetailPanel.hidden = true; 
         logoutBtn.hidden = true;
         sessionUser.textContent = 'Sin sesión';
     }
@@ -145,12 +168,16 @@ async function loadRequests() {
         requests.forEach(req => {
             const li = document.createElement('li');
             li.style.cssText = 'background: #161923; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #2a2f3d;';
+            
+            const displayStatus = statusMap[req.status] || req.status;
+            const displayPriority = priorityMap[req.priority] || req.priority || 'N/A';
+
             li.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <strong style="color: #4da6ff;">${req.title}</strong>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <span style="font-size: 0.8rem; background: #2a2f3d; padding: 0.2rem 0.6rem; border-radius: 12px;">Prioridad: ${req.priority || 'N/A'}</span>
-                        <span style="font-size: 0.8rem; background: #3d2a2f; color: #ff6b6b; padding: 0.2rem 0.6rem; border-radius: 12px;">Estado: ${req.status}</span>
+                        <span style="font-size: 0.8rem; background: #2a2f3d; padding: 0.2rem 0.6rem; border-radius: 12px;">Prioridad: ${displayPriority}</span>
+                        <span style="font-size: 0.8rem; background: #3d2a2f; color: #ff6b6b; padding: 0.2rem 0.6rem; border-radius: 12px;">Estado: ${displayStatus}</span>
                         <button onclick="openRequestDetail('${req.id}')" style="padding: 0.2rem 0.5rem; font-size: 0.85rem;">Ver Detalle</button>
                     </div>
                 </div>
@@ -178,7 +205,6 @@ updateUI = function() {
                 loadRequests();
             }
         } catch (e) {
-            // Si hay error decodificando, intentamos cargar como requester por defecto
             loadRequests();
         }
     }
@@ -206,36 +232,45 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 applyFiltersBtn.addEventListener('click', loadRequests);
 
-// Exponer la función al contexto global para el onclick del HTML
 window.openRequestDetail = async (id) => {
     try {
         const req = await requestService.getById(id);
+        const historyData = await requestService.getHistory(id);
         
-        // Cambiar vista
         requestsPanel.hidden = true;
         requestDetailPanel.hidden = false;
 
-        // Llenar datos
+        const displayStatus = statusMap[req.status] || req.status;
+
         document.getElementById('edit-request-id').value = req.id || req._id;
         document.getElementById('edit-title').value = req.title;
         document.getElementById('edit-description').value = req.description;
-        document.getElementById('detail-status-badge').textContent = `Estado: ${req.status}`;
+        document.getElementById('detail-status-badge').textContent = `Estado: ${displayStatus}`;
 
-        // Lógica de bloqueo por estado (asumiendo que 'open' o 'pending' permite edición)
         const canEdit = req.status.toLowerCase() === 'open' || req.status.toLowerCase() === 'pending';
         document.getElementById('edit-title').disabled = !canEdit;
         document.getElementById('edit-description').disabled = !canEdit;
         document.getElementById('update-request-btn').hidden = !canEdit;
         editWarning.hidden = canEdit;
 
-        // Cargar historial
         requestHistoryList.innerHTML = '';
-        if (req.history && req.history.length > 0) {
-            req.history.forEach(log => {
+        if (historyData && historyData.length > 0) {
+            historyData.forEach(log => {
                 const li = document.createElement('li');
                 li.style.cssText = 'background: #1a1e2b; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #4da6ff; font-size: 0.85rem;';
-                const date = new Date(log.createdAt || log.timestamp).toLocaleString();
-                li.innerHTML = `<strong>${date}</strong>: ${log.action || log.message} por ${log.user || 'Sistema'}`;
+                
+                const date = log.changedAt ? new Date(log.changedAt).toLocaleString() : 'Fecha desconocida';
+                const displayNew = statusMap[log.newStatus] || log.newStatus;
+                
+                let message;
+                if (log.previousStatus === null) {
+                    message = `Solicitud creada en estado "${displayNew}"`;
+                } else {
+                    const displayPrev = statusMap[log.previousStatus] || log.previousStatus;
+                    message = `Estado cambiado de "${displayPrev}" a "${displayNew}"`;
+                }
+
+                li.innerHTML = `<strong>${date}</strong>: ${message} por ${log.changedBy || 'Sistema'}`;
                 requestHistoryList.appendChild(li);
             });
         } else {
@@ -247,14 +282,12 @@ window.openRequestDetail = async (id) => {
     }
 };
 
-// Volver a la lista
 backToListBtn.addEventListener('click', () => {
     requestDetailPanel.hidden = true;
     requestsPanel.hidden = false;
-    loadRequests(); // Recargar por si hubo cambios
+    loadRequests(); 
 });
 
-// Guardar cambios
 editRequestForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const id = document.getElementById('edit-request-id').value;
@@ -264,7 +297,6 @@ editRequestForm.addEventListener('submit', async (e) => {
     try {
         await requestService.update(id, title, description);
         alert('Solicitud actualizada correctamente');
-        // Recargar los detalles para ver el nuevo historial
         window.openRequestDetail(id);
     } catch (error) {
         alert(`Error: ${error.message}`);
@@ -276,14 +308,12 @@ async function loadAgentRequests() {
     agentRequestsState.hidden = false;
     agentRequestsList.innerHTML = ''; 
 
-    // Construir la URL con los filtros exclusivos del agente
     const params = new URLSearchParams();
     if (agentFilterStatus.value) params.append('status', agentFilterStatus.value);
     if (agentFilterPriority.value) params.append('priority', agentFilterPriority.value);
     const queryString = params.toString() ? `?${params.toString()}` : '';
 
     try {
-        // El backend sabe que eres agente gracias al Token, y devolverá TODAS las solicitudes
         const requests = await requestService.getRequests(queryString);
         
         if (requests.length === 0) {
@@ -296,12 +326,16 @@ async function loadAgentRequests() {
         requests.forEach(req => {
             const li = document.createElement('li');
             li.style.cssText = 'background: #161923; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #2a2f3d; border-left: 4px solid #9b59b6;';
+            
+            const displayStatus = statusMap[req.status] || req.status;
+            const displayPriority = priorityMap[req.priority] || req.priority || 'N/A';
+
             li.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
                     <strong style="color: #4da6ff;">${req.title}</strong>
                     <div style="display: flex; gap: 0.5rem; align-items: center;">
-                        <span style="font-size: 0.8rem; background: #2a2f3d; padding: 0.2rem 0.6rem; border-radius: 12px;">Prioridad: ${req.priority || 'N/A'}</span>
-                        <span style="font-size: 0.8rem; background: #3d2a2f; color: #ff6b6b; padding: 0.2rem 0.6rem; border-radius: 12px;">Estado: ${req.status}</span>
+                        <span style="font-size: 0.8rem; background: #2a2f3d; padding: 0.2rem 0.6rem; border-radius: 12px;">Prioridad: ${displayPriority}</span>
+                        <span style="font-size: 0.8rem; background: #3d2a2f; color: #ff6b6b; padding: 0.2rem 0.6rem; border-radius: 12px;">Estado: ${displayStatus}</span>
                         <button onclick="openAgentRequestDetail('${req.id || req._id}')" style="padding: 0.2rem 0.5rem; font-size: 0.85rem; background: #9b59b6;">Gestionar</button>
                     </div>
                 </div>
@@ -315,5 +349,103 @@ async function loadAgentRequests() {
     }
 }
 
-// Conectar el botón de aplicar filtros del agente
 agentApplyFiltersBtn.addEventListener('click', loadAgentRequests);
+
+window.openAgentRequestDetail = async (id) => {
+    try {
+        const req = await requestService.getById(id);
+        const historyData = await requestService.getHistory(id);
+        
+        agentPanel.hidden = true;
+        agentRequestDetailPanel.hidden = false;
+        agentManageFeedback.hidden = true;
+
+        const currentStatus = req.status.toLowerCase();
+        const displayStatus = statusMap[currentStatus] || currentStatus;
+
+        document.getElementById('agent-manage-request-id').value = req.id || req._id;
+        document.getElementById('agent-current-status').value = currentStatus;
+        document.getElementById('agent-detail-title').textContent = req.title;
+        document.getElementById('agent-detail-description').textContent = req.description;
+        document.getElementById('agent-detail-status-badge').textContent = `Estado: ${displayStatus}`;
+        
+        document.getElementById('agent-manage-priority').value = req.priority ? req.priority.toLowerCase() : 'low';
+
+        agentManageStatus.innerHTML = `<option value="${currentStatus}">Mantener actual (${displayStatus})</option>`;
+        
+        const availableTransitions = validTransitions[currentStatus] || [];
+        availableTransitions.forEach(st => {
+            const opt = document.createElement('option');
+            opt.value = st;
+            opt.textContent = `Cambiar a: ${statusMap[st] || st}`; 
+            agentManageStatus.appendChild(opt);
+        });
+
+        const isClosed = currentStatus === 'closed';
+        document.getElementById('agent-update-btn').hidden = isClosed;
+        document.getElementById('agent-manage-priority').disabled = isClosed;
+        agentManageStatus.disabled = isClosed;
+
+        const historyList = document.getElementById('agent-request-history-list');
+        historyList.innerHTML = '';
+        if (historyData && historyData.length > 0) {
+            historyData.forEach(log => {
+                const li = document.createElement('li');
+                li.style.cssText = 'background: #1a1e2b; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #9b59b6; font-size: 0.85rem;';
+                
+                const date = log.changedAt ? new Date(log.changedAt).toLocaleString() : 'Fecha desconocida';
+                const displayNew = statusMap[log.newStatus] || log.newStatus;
+                
+                let message;
+                if (log.previousStatus === null) {
+                    message = `Solicitud creada en estado "${displayNew}"`;
+                } else {
+                    const displayPrev = statusMap[log.previousStatus] || log.previousStatus;
+                    message = `Estado cambiado de "${displayPrev}" a "${displayNew}"`;
+                }
+
+                li.innerHTML = `<strong>${date}</strong>: ${message} por ${log.changedBy || 'Sistema'}`;
+                historyList.appendChild(li);
+            });
+        } else {
+            historyList.innerHTML = '<li style="color: #a0a5b5; font-size: 0.9rem;">No hay historial registrado.</li>';
+        }
+
+    } catch (error) {
+        alert(`Error al cargar detalles: ${error.message}`);
+    }
+};
+
+agentBackToListBtn.addEventListener('click', () => {
+    agentRequestDetailPanel.hidden = true;
+    agentPanel.hidden = false;
+    loadAgentRequests();
+});
+
+agentManageForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    agentManageFeedback.hidden = true;
+    
+    const id = document.getElementById('agent-manage-request-id').value;
+    const priority = document.getElementById('agent-manage-priority').value;
+    const status = agentManageStatus.value;
+    const currentStatus = document.getElementById('agent-current-status').value;
+
+    if (status === currentStatus && priority === document.getElementById('agent-manage-priority').defaultValue) {
+        return; 
+    }
+
+    try {
+        await requestService.manageByAgent(id, status, priority);
+        
+        agentManageFeedback.textContent = 'Actualización exitosa.';
+        agentManageFeedback.style.color = '#51cf66';
+        agentManageFeedback.hidden = false;
+        
+        await window.openAgentRequestDetail(id);
+    } catch (error) {
+        agentManageFeedback.textContent = error.message;
+        agentManageFeedback.style.color = '#ff6b6b';
+        agentManageFeedback.hidden = false;
+    }
+});

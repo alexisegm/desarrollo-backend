@@ -1,4 +1,4 @@
-// frontend/app/services/api.js
+
 const API_URL = import.meta.env.VITE_API_URL;
 
 export const authService = {
@@ -11,25 +11,21 @@ export const authService = {
 
     if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        // Buscamos el error en la estructura de tu backend o caemos en un mensaje por defecto
         const errorMsg = data.error?.message || data.message || 'Error al iniciar sesión';
         throw new Error(errorMsg);
     }
     return response.json(); 
   },
 
-  // Quitamos el parámetro 'role'
   async register(name, email, password) {
     const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Solo enviamos name, email y password
         body: JSON.stringify({ name, email, password }),
     });
 
     if (!response.ok) {
         const data = await response.json().catch(() => ({}));
-        // Buscamos el error en la estructura de tu backend
         const errorMsg = data.error?.message || data.message || 'Error al registrar usuario';
         throw new Error(errorMsg);
     }
@@ -48,10 +44,7 @@ export const tokenService = {
     }
 };
 
-// Añadir al final de frontend/app/services/api.js
-
 export const requestService = {
-    // Listar solicitudes (soporta query strings para los filtros más adelante)
     async getRequests(queryString = '') {
         const response = await fetch(`${API_URL}/requests${queryString}`, {
             headers: tokenService.getAuthHeaders()
@@ -64,7 +57,6 @@ export const requestService = {
         return response.json();
     },
 
-    // Crear nueva solicitud
     async create(title, description) {
         const response = await fetch(`${API_URL}/requests`, {
             method: 'POST',
@@ -82,7 +74,6 @@ export const requestService = {
         return response.json();
     },
 
-    // Obtener detalle de una solicitud (incluye historial)
     async getById(id) {
         const response = await fetch(`${API_URL}/requests/${id}`, {
             headers: tokenService.getAuthHeaders()
@@ -91,7 +82,14 @@ export const requestService = {
         return response.json();
     },
 
-    // Actualizar solicitud (título y descripción)
+    async getHistory(id) {
+        const response = await fetch(`${API_URL}/requests/${id}/history`, {
+            headers: tokenService.getAuthHeaders()
+        });
+        if (!response.ok) throw new Error('Error al obtener el historial');
+        return response.json();
+    },
+
     async update(id, title, description) {
         const response = await fetch(`${API_URL}/requests/${id}`, {
             method: 'PATCH',
@@ -104,6 +102,28 @@ export const requestService = {
         if (!response.ok) {
             const data = await response.json().catch(() => ({}));
             throw new Error(data.error?.message || data.message || 'Error al actualizar');
+        }
+        return response.json();
+
+    },
+
+    async manageByAgent(id, status, priority) {
+        const response = await fetch(`${API_URL}/requests/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...tokenService.getAuthHeaders()
+            },
+            body: JSON.stringify({ status, priority })
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const errorMsg = data.error?.message || data.message || 'Error al actualizar';
+
+            if (response.status === 409) {
+                throw new Error('Conflicto: Transición de estado no permitida.');   
+        }
+            throw new Error(errorMsg);
         }
         return response.json();
     }
