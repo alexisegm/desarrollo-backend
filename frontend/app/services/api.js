@@ -80,5 +80,31 @@ export const requestService = {
             throw new Error(data.error?.message || data.message || 'Error al crear solicitud');
         }
         return response.json();
+    },
+
+    // Obtener detalle de una solicitud (incluye historial)
+    async getById(id) {
+        const response = await fetch(`${API_URL}/requests/${id}`, {
+            headers: tokenService.getAuthHeaders()
+        });
+        if (!response.ok) throw new Error('Error al obtener detalles');
+        return response.json();
+    },
+
+    // Actualizar solicitud (título y descripción)
+    async update(id, title, description) {
+        const response = await fetch(`${API_URL}/requests/${id}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                ...tokenService.getAuthHeaders()
+            },
+            body: JSON.stringify({ title, description })
+        });
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            throw new Error(data.error?.message || data.message || 'Error al actualizar');
+        }
+        return response.json();
     }
 };

@@ -67,6 +67,27 @@
       <p id="requests-state" class="feedback" role="status">Cargando solicitudes...</p>
       <ul id="requests-list" class="request-list"></ul>
     </section>
+    <!-- Panel de Detalle de Solicitud -->
+    <section id="request-detail-panel" class="panel" hidden>
+      <button id="back-to-list-btn" style="margin-bottom: 1rem; background: #2a2f3d; color: white; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer;">&larr; Volver a la lista</button>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+          <h2>Detalle de Solicitud</h2>
+          <span id="detail-status-badge" style="font-size: 0.9rem; padding: 0.3rem 0.8rem; border-radius: 12px; background: #3d2a2f;"></span>
+      </div>
+
+      <form id="edit-request-form" class="stack" style="margin-top: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #2a2f3d;">
+        <input type="hidden" id="edit-request-id">
+        <label>Título <input name="title" id="edit-title" type="text" required></label>
+        <label>Descripción <textarea name="description" id="edit-description" required style="width: 100%; padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px; min-height: 80px;"></textarea></label>
+        
+        <button type="submit" id="update-request-btn">Guardar Cambios</button>
+        <p id="edit-warning" style="color: #ff6b6b; font-size: 0.85rem; margin-top: 0.5rem;" hidden>Esta solicitud ya no puede ser editada porque su estado cambió.</p>
+      </form>
+
+      <h3 style="margin-top: 2rem; color: #a0a5b5;">Historial de Cambios</h3>
+      <ul id="request-history-list" class="request-list"></ul>
+    </section>
   </main>
 
   <script type="module" src="./main.js"></script>
