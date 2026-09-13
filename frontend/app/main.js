@@ -18,6 +18,12 @@ const authFeedback = document.getElementById('auth-feedback');
 const filterStatus = document.getElementById('filter-status');
 const filterPriority = document.getElementById('filter-priority');
 const applyFiltersBtn = document.getElementById('apply-filters-btn');
+const agentPanel = document.getElementById('agent-panel');
+const agentFilterStatus = document.getElementById('agent-filter-status');
+const agentFilterPriority = document.getElementById('agent-filter-priority');
+const agentApplyFiltersBtn = document.getElementById('agent-apply-filters-btn');
+const agentRequestsState = document.getElementById('agent-requests-state');
+const agentRequestsList = document.getElementById('agent-requests-list');
 
 function showAuthFeedback(message, isError = true) {
     authFeedback.textContent = message;
@@ -35,19 +41,35 @@ function updateUI() {
     
     if (token) {
         authPanel.hidden = true;
-        requestsPanel.hidden = false;
         logoutBtn.hidden = false;
         
         try {
             const payloadBase64 = token.split('.')[1];
             const decodedPayload = JSON.parse(atob(payloadBase64));
-            sessionUser.textContent = `Rol: ${decodedPayload.role || 'Desconocido'}`;
+            const userRole = decodedPayload.role || 'requester'; // Por defecto requester si no hay rol
+            
+            sessionUser.textContent = `Rol: ${userRole}`;
+
+            // Bifurcación basada en el rol
+            if (userRole === 'agent') {
+                requestsPanel.hidden = true;
+                agentPanel.hidden = false;
+            } else {
+                agentPanel.hidden = true;
+                requestsPanel.hidden = false;
+            }
+            
         } catch (e) {
-            sessionUser.textContent = 'Sesión Activa';
+            sessionUser.textContent = 'Sesión Activa (Error leyendo rol)';
+            requestsPanel.hidden = false;
+            agentPanel.hidden = true;
         }
     } else {
+        // No hay sesión
         authPanel.hidden = false;
         requestsPanel.hidden = true;
+        agentPanel.hidden = true;
+        requestDetailPanel.hidden = true; // Asegurar que el detalle también se oculte al salir
         logoutBtn.hidden = true;
         sessionUser.textContent = 'Sin sesión';
     }
@@ -145,8 +167,20 @@ async function loadRequests() {
 const originalUpdateUI = updateUI;
 updateUI = function() {
     originalUpdateUI();
-    if (tokenService.getToken()) {
-        loadRequests();
+    const token = tokenService.getToken();
+    if (token) {
+        try {
+            const payloadBase64 = token.split('.')[1];
+            const decodedPayload = JSON.parse(atob(payloadBase64));
+            if (decodedPayload.role === 'agent') {
+                loadAgentRequests();
+            } else {
+                loadRequests();
+            }
+        } catch (e) {
+            // Si hay error decodificando, intentamos cargar como requester por defecto
+            loadRequests();
+        }
     }
 };
 
@@ -236,3 +270,50 @@ editRequestForm.addEventListener('submit', async (e) => {
         alert(`Error: ${error.message}`);
     }
 });
+
+async function loadAgentRequests() {
+    agentRequestsState.textContent = 'Cargando todas las solicitudes...';
+    agentRequestsState.hidden = false;
+    agentRequestsList.innerHTML = ''; 
+
+    // Construir la URL con los filtros exclusivos del agente
+    const params = new URLSearchParams();
+    if (agentFilterStatus.value) params.append('status', agentFilterStatus.value);
+    if (agentFilterPriority.value) params.append('priority', agentFilterPriority.value);
+    const queryString = params.toString() ? `?${params.toString()}` : '';
+
+    try {
+        // El backend sabe que eres agente gracias al Token, y devolverá TODAS las solicitudes
+        const requests = await requestService.getRequests(queryString);
+        
+        if (requests.length === 0) {
+            agentRequestsState.textContent = 'No hay solicitudes en el sistema.';
+            return;
+        }
+
+        agentRequestsState.hidden = true; 
+        
+        requests.forEach(req => {
+            const li = document.createElement('li');
+            li.style.cssText = 'background: #161923; padding: 1rem; margin-bottom: 1rem; border-radius: 8px; border: 1px solid #2a2f3d; border-left: 4px solid #9b59b6;';
+            li.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                    <strong style="color: #4da6ff;">${req.title}</strong>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <span style="font-size: 0.8rem; background: #2a2f3d; padding: 0.2rem 0.6rem; border-radius: 12px;">Prioridad: ${req.priority || 'N/A'}</span>
+                        <span style="font-size: 0.8rem; background: #3d2a2f; color: #ff6b6b; padding: 0.2rem 0.6rem; border-radius: 12px;">Estado: ${req.status}</span>
+                        <button onclick="openAgentRequestDetail('${req.id || req._id}')" style="padding: 0.2rem 0.5rem; font-size: 0.85rem; background: #9b59b6;">Gestionar</button>
+                    </div>
+                </div>
+                <p style="margin: 0; font-size: 0.9rem; color: #a0a5b5;">${req.description}</p>
+            `;
+            agentRequestsList.appendChild(li);
+        });
+    } catch (error) {
+        agentRequestsState.textContent = `Error al cargar: ${error.message}`;
+        agentRequestsState.style.color = '#ff6b6b';
+    }
+}
+
+// Conectar el botón de aplicar filtros del agente
+agentApplyFiltersBtn.addEventListener('click', loadAgentRequests);
