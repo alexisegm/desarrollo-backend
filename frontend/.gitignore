@@ -3,3 +3,7 @@ dist/
 .env
 .env.*
 !.env.example
+# Logs y SO
+npm-debug.log*
+.DS_Store
+.vscode/
