@@ -16,6 +16,10 @@
     </div>
   </header>
 
+  <div class="global-status-shell">
+    <p id="auth-feedback" class="global-status" role="status" aria-live="polite" hidden></p>
+  </div>
+
   <main class="layout">
     <section id="auth-panel" class="panel">
       <h2>Entrar</h2>
@@ -34,8 +38,6 @@
         <label>Password <input name="password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label>
         <button type="submit">Crear cuenta</button>
       </form>
-
-      <p id="auth-feedback" class="feedback" role="status"></p>
     </section>
 
     <section id="requests-panel" class="panel" hidden>

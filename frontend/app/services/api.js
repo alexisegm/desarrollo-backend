@@ -2,6 +2,12 @@
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+function ensureAuthenticated() {
+    if (!tokenService.getToken()) {
+        throw new ApiError(401, 'Tu sesión ha expirado o no estás autorizado. Vuelve a iniciar sesión.');
+    }
+}
+
 export class ApiError extends Error {
     constructor(status, message) {
         super(message);
@@ -70,6 +76,7 @@ export const tokenService = {
 export const requestService = {
     async getRequests(queryString = '') {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests${queryString}`, {
                 headers: tokenService.getAuthHeaders()
             });
@@ -89,6 +96,7 @@ export const requestService = {
 
     async create(title, description) {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests`, {
                 method: 'POST',
                 headers: {
@@ -113,6 +121,7 @@ export const requestService = {
 
     async getById(id) {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests/${id}`, {
                 headers: tokenService.getAuthHeaders()
             });
@@ -131,6 +140,7 @@ export const requestService = {
 
     async getHistory(id) {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests/${id}/history`, {
                 headers: tokenService.getAuthHeaders()
             });
@@ -149,6 +159,7 @@ export const requestService = {
 
     async update(id, title, description) {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests/${id}`, {
                 method: 'PATCH',
                 headers: {
@@ -172,6 +183,7 @@ export const requestService = {
 
     async manageByAgent(id, status, priority) {
         try {
+            ensureAuthenticated();
             const response = await fetch(`${API_URL}/requests/${id}`, {
                 method: 'PATCH',
                 headers: {
