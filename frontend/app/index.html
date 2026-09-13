@@ -1,0 +1,55 @@
+<!-- frontend/app/index.html -->
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Solicitudes — /app</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <strong>Solicitudes</strong>
+    <div id="session-box" class="session-box">
+      <span id="session-user" class="session-user">Sin sesión</span>
+      <button id="logout-btn" hidden type="button">Salir</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section id="auth-panel" class="panel">
+      <h2>Entrar</h2>
+      <form id="login-form" class="stack">
+        <label>Email <input name="email" type="email" required autocomplete="username"></label>
+        <label>Password <input name="password" type="password" required minlength="15" maxlength="128" autocomplete="current-password"></label>
+        <button type="submit">Iniciar sesión</button>
+      </form>
+      
+      <hr style="margin: 20px 0; border-color: #2a2f3d;">
+
+      <h2>Registrarse</h2>
+      <form id="register-form" class="stack">
+        <label>Nombre <input name="name" type="text" required></label>
+        <label>Email <input name="email" type="email" required autocomplete="username"></label>
+        <label>Password <input name="password" type="password" required minlength="15" maxlength="128" autocomplete="new-password"></label>
+        <button type="submit">Crear cuenta</button>
+      </form>
+
+      <p id="auth-feedback" class="feedback" role="status"></p>
+    </section>
+
+    <section id="requests-panel" class="panel" hidden>
+      <h2>Mis solicitudes</h2>
+      <form id="create-request-form" class="stack" style="margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #2a2f3d;">
+        <label>Título <input name="title" type="text" required></label>
+        <label>Descripción <textarea name="description" required style="width: 100%; padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px; min-height: 80px;"></textarea></label>
+        <button type="submit">Crear solicitud</button>
+      </form>
+      <p id="requests-state" class="feedback" role="status">Cargando solicitudes...</p>
+      <ul id="requests-list" class="request-list"></ul>
+    </section>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
