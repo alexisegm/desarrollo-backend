@@ -62,7 +62,7 @@ function getFriendlyErrorMessage(error) {
                 mensajeVisible = 'Datos inválidos. Por favor verifica los campos.';
                 break;
             case 401:
-                mensajeVisible = 'Tu sesión ha expirado o no estás autorizado. Vuelve a iniciar sesión.';
+                showAuthFeedback('Tu sesión ha expirado o no estás autorizado. Vuelve a iniciar sesión.', true);
                 tokenService.removeToken();
                 updateUI();
                 break;
@@ -324,14 +324,32 @@ window.openRequestDetail = async (id) => {
                 li.style.cssText = 'background: #1a1e2b; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #4da6ff; font-size: 0.85rem;';
                 
                 const date = log.changedAt ? new Date(log.changedAt).toLocaleString() : 'Fecha desconocida';
-                const displayNew = statusMap[log.newStatus] || log.newStatus;
+                let message = '';
                 
-                let message;
-                if (log.previousStatus === null) {
-                    message = `Solicitud creada en estado "${displayNew}"`;
-                } else {
-                    const displayPrev = statusMap[log.previousStatus] || log.previousStatus;
-                    message = `Estado cambiado de "${displayPrev}" a "${displayNew}"`;
+                if (log.newStatus) {
+                    const displayNewStatus = statusMap[log.newStatus] || log.newStatus;
+                    if (!log.previousStatus) {
+                        message += `Solicitud creada en estado "${displayNewStatus}"`;
+                    } else if (log.newStatus !== log.previousStatus) {
+                        const displayPrevStatus = statusMap[log.previousStatus] || log.previousStatus;
+                        message += `Estado cambiado de "${displayPrevStatus}" a "${displayNewStatus}"`;
+                    }
+                }
+
+                if (log.newPriority && log.newPriority !== log.previousPriority) {
+                    const displayNewPriority = priorityMap[log.newPriority] || log.newPriority;
+                    if (message.length > 0) message += ' | ';
+                    
+                    if (!log.previousPriority) {
+                         message += `Prioridad establecida en "${displayNewPriority}"`;
+                    } else {
+                         const displayPrevPriority = priorityMap[log.previousPriority] || log.previousPriority;
+                         message += `Prioridad cambiada de "${displayPrevPriority}" a "${displayNewPriority}"`;
+                    }
+                }
+                
+                if (message === '') {
+                    message = 'Registro de historial actualizado';
                 }
 
                 li.innerHTML = `<strong>${date}</strong>: ${message} por ${log.changedBy || 'Sistema'}`;
@@ -460,14 +478,32 @@ window.openAgentRequestDetail = async (id) => {
                 li.style.cssText = 'background: #1a1e2b; padding: 0.8rem; margin-bottom: 0.5rem; border-radius: 4px; border-left: 3px solid #9b59b6; font-size: 0.85rem;';
                 
                 const date = log.changedAt ? new Date(log.changedAt).toLocaleString() : 'Fecha desconocida';
-                const displayNew = statusMap[log.newStatus] || log.newStatus;
+                let message = '';
                 
-                let message;
-                if (log.previousStatus === null) {
-                    message = `Solicitud creada en estado "${displayNew}"`;
-                } else {
-                    const displayPrev = statusMap[log.previousStatus] || log.previousStatus;
-                    message = `Estado cambiado de "${displayPrev}" a "${displayNew}"`;
+                if (log.newStatus) {
+                    const displayNewStatus = statusMap[log.newStatus] || log.newStatus;
+                    if (!log.previousStatus) {
+                        message += `Solicitud creada en estado "${displayNewStatus}"`;
+                    } else if (log.newStatus !== log.previousStatus) {
+                        const displayPrevStatus = statusMap[log.previousStatus] || log.previousStatus;
+                        message += `Estado cambiado de "${displayPrevStatus}" a "${displayNewStatus}"`;
+                    }
+                }
+
+                if (log.newPriority && log.newPriority !== log.previousPriority) {
+                    const displayNewPriority = priorityMap[log.newPriority] || log.newPriority;
+                    if (message.length > 0) message += ' | ';
+                    
+                    if (!log.previousPriority) {
+                         message += `Prioridad establecida en "${displayNewPriority}"`;
+                    } else {
+                         const displayPrevPriority = priorityMap[log.previousPriority] || log.previousPriority;
+                         message += `Prioridad cambiada de "${displayPrevPriority}" a "${displayNewPriority}"`;
+                    }
+                }
+                
+                if (message === '') {
+                    message = 'Registro de historial actualizado';
                 }
 
                 li.innerHTML = `<strong>${date}</strong>: ${message} por ${log.changedBy || 'Sistema'}`;
@@ -506,11 +542,15 @@ agentManageForm.addEventListener('submit', async (e) => {
     try {
         await requestService.manageByAgent(id, status, priority);
         
+        await window.openAgentRequestDetail(id);
+
         agentManageFeedback.textContent = 'Actualización exitosa.';
         agentManageFeedback.style.color = '#51cf66';
         agentManageFeedback.hidden = false;
         
-        await window.openAgentRequestDetail(id);
+        setTimeout(() => {
+            agentManageFeedback.hidden = true;
+        }, 4000);
     } catch (error) {
         agentManageFeedback.textContent = getFriendlyErrorMessage(error);
         agentManageFeedback.style.color = '#ff6b6b';
