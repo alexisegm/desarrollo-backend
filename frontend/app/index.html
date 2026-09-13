@@ -45,6 +45,25 @@
         <label>Descripción <textarea name="description" required style="width: 100%; padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px; min-height: 80px;"></textarea></label>
         <button type="submit">Crear solicitud</button>
       </form>
+      <!-- Filtros -->
+      <div id="filters-container" style="display: flex; gap: 1rem; margin-bottom: 1.5rem; align-items: center;">
+        <select id="filter-status" style="padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px;">
+          <option value="">Cualquier estado</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+
+        <select id="filter-priority" style="padding: 0.5rem; background: #161923; color: #e8eaf0; border: 1px solid #2a2f3d; border-radius: 4px;">
+          <option value="">Cualquier prioridad</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+        </select>
+
+        <button id="apply-filters-btn" type="button" style="padding: 0.5rem 1rem; flex-shrink: 0;">Aplicar filtros</button>
+      </div>
       <p id="requests-state" class="feedback" role="status">Cargando solicitudes...</p>
       <ul id="requests-list" class="request-list"></ul>
     </section>
