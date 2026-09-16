@@ -9,7 +9,8 @@ import {
   listRequests,
   getRequest,
   createRequest,
-  patchRequest
+  patchRequest,
+  getRequestHistory // <-- Importante: Importar la nueva función del service
 } from './requests.service.js';
 import { respondError } from '../../http/respond-error.js';
 
@@ -43,6 +44,15 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   try {
     res.status(200).json(await patchRequest(req.auth, Number(req.params.id), req.body));
+  } catch (error) {
+    respondError(res, error);
+  }
+});
+
+// Nuevo endpoint para obtener el historial
+router.get('/:id/history', async (req, res) => {
+  try {
+    res.status(200).json(await getRequestHistory(req.auth, Number(req.params.id)));
   } catch (error) {
     respondError(res, error);
   }

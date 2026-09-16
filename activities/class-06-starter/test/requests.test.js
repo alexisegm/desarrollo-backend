@@ -100,3 +100,33 @@ test('returns an empty array when a valid filter has no matches', async () => {
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, []);
 });
+
+test('owner can read request history', async () => {
+  const owner = await createUser({ name: 'reader' });
+  const ownerToken = await loginAs(owner); // Obtenemos el token correctamente
+  const newRequest = await createRequestAs(ownerToken);
+  
+  const response = await request(app)
+    .get(`/requests/${newRequest.id}/history`)
+    .set('Authorization', `Bearer ${ownerToken}`);
+  
+  assert.equal(response.status, 200);
+  assert.ok(Array.isArray(response.body));
+});
+
+test('stranger gets 404 when reading another user request history', async () => {
+  const owner = await createUser({ name: 'reader' });
+  const stranger = await createUser({ name: 'stranger' });
+  
+  const ownerToken = await loginAs(owner); // Token del dueño
+  const strangerToken = await loginAs(stranger); // Token del extraño
+  
+  const newRequest = await createRequestAs(ownerToken);
+  
+  // El extraño intenta leer la solicitud del dueño
+  const response = await request(app)
+    .get(`/requests/${newRequest.id}/history`)
+    .set('Authorization', `Bearer ${strangerToken}`);
+  
+  assert.equal(response.status, 404);
+});

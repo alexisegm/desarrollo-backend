@@ -9,7 +9,8 @@ import {
   findById,
   insertRequest,
   updateRequest,
-  insertHistoryEvent
+  insertHistoryEvent,
+  findHistory // <-- Importante: Importar findHistory del store
 } from './requests.store.js';
 import { mapRequestRow } from './request.mapper.js';
 import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
@@ -211,4 +212,14 @@ export async function patchRequest(actor, id, body) {
   });
 
   return mapRequestRow(row);
+}
+
+// Nueva función para obtener el historial
+export async function getRequestHistory(actor, id) {
+  // 1. Reutilizamos getRequest: esto valida que exista y que el actor tenga permiso para verla.
+  // Si no existe o no tiene permiso, getRequest lanzará automáticamente el error 'REQUEST_NOT_FOUND' 404.
+  await getRequest(actor, id);
+
+  // 2. Si pasa la validación, obtenemos el historial usando la función del store.
+  return await findHistory(id);
 }
