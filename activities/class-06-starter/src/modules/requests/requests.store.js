@@ -106,7 +106,7 @@ export async function findHistory(requestId, db = pool) {
   // Oldest first; the id is the STABLE tie-breaker when two events share
   // the same timestamp.
   const result = await db.query(
-    `SELECT id, type, from_status, to_status, from_priority, to_priority, created_at
+    `SELECT id, type, from_status AS "fromStatus", to_status AS "toStatus", from_priority AS "fromPriority", to_priority AS "toPriority", created_at
      FROM request_history
      WHERE request_id = $1
      ORDER BY created_at, id`,
