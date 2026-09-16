@@ -86,3 +86,17 @@ test('an agent can move a request through a valid transition', async () => {
   assert.equal(response.status, 200);
   assert.equal(response.body.status, 'in_progress');
 });
+test('returns an empty array when a valid filter has no matches', async () => {
+  // Prepare: un requester recién creado (no depende de Ana ni del seed)
+  const user = await createUser(); 
+  const token = await loginAs(user);
+
+  // Act: GET /requests?status=closed
+  const response = await request(app)
+    .get('/requests?status=closed')
+    .set('Authorization', `Bearer ${token}`);
+
+  // Check: status 200 Y body deepEqual [][cite: 1]
+  assert.equal(response.status, 200);
+  assert.deepEqual(response.body, []);
+});
