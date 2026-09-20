@@ -3,3 +3,61 @@ body { margin: 0; font-family: system-ui, sans-serif; background: #0f1117; color
 .lead { color: #98a0b3; line-height: 1.6; }
 .todo { border: 1px dashed #2a2f3d; border-radius: 10px; padding: 0.9rem 1.1rem; color: #b87dff; }
 code { background: #161923; padding: 0.1rem 0.35rem; border-radius: 5px; color: #4dff8a; }
+.topic-group { margin-top: 3rem; }
+.topic-group h2 { border-bottom: 2px solid #2a2f3d; padding-bottom: 0.5rem; color: #fff; }
+.cards-grid { 
+  display: grid; 
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); 
+  gap: 1.2rem; 
+  margin-top: 1.5rem; 
+  grid-auto-rows: min-content;
+  align-items: stretch;
+}
+
+.interaction-container { margin: 2.5rem 0; padding: 1.5rem; background: #1a1d27; border: 1px solid #3b4252; border-radius: 8px; }
+.interaction-container h3 { margin-top: 0; color: #4dff8a; }
+.interaction-desc { font-size: 0.9rem; color: #98a0b3; margin-bottom: 1.5rem; }
+/* Estilos para las Interacciones */
+.interaction-ui { background: #161923; padding: 1.5rem; border-radius: 8px; }
+.control-group { margin-bottom: 1.2rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.control-group select { padding: 0.5rem; background: #2a2f3d; color: #e8eaf0; border: 1px solid #3b4252; border-radius: 4px; font-size: 1rem; }
+.actions { margin-top: 1.5rem; display: flex; gap: 1rem; }
+.btn-primary { padding: 0.6rem 1.2rem; background: #b87dff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.btn-secondary { padding: 0.6rem 1.2rem; background: transparent; color: #98a0b3; border: 1px solid #3b4252; border-radius: 4px; cursor: pointer; }
+.result-box { margin-top: 1.5rem; padding: 1rem; border-radius: 4px; border-left: 4px solid; }
+.error-401 { background: rgba(255, 77, 77, 0.1); border-left-color: #ff4d4d; color: #ffcccc; }
+.error-403 { background: rgba(255, 184, 77, 0.1); border-left-color: #ffb84d; color: #ffe6cc; }
+.success-200 { background: rgba(77, 255, 138, 0.1); border-left-color: #4dff8a; color: #ccffdd; }
+/* Estilos extra para el Simulador JWT */
+.control-group textarea { padding: 0.8rem; background: #1f2330; color: #4dff8a; border: 1px solid #3b4252; border-radius: 4px; font-size: 0.95rem; resize: vertical; }
+.control-group textarea:focus { outline: none; border-color: #b87dff; }
+/* Estilos para las Fichas de Contenido */
+.topic-card { 
+  background: #161923; 
+  border: 1px solid rgba(255, 255, 255, 0.05); 
+  border-radius: 16px; /* Borde amplio característico del Bento */
+  padding: 1.5rem; 
+  display: flex; 
+  flex-direction: column; 
+  gap: 0.8rem; 
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+/* 4. Efecto de "enganchar" al usuario al pasar el cursor */
+.topic-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  border-color: #3b4252;
+}
+
+/* Ajustes internos para que respiren mejor en el nuevo formato */
+.topic-card h4 { margin: 0; color: #b87dff; border-bottom: 1px solid rgba(255, 255, 255, 0.05); padding-bottom: 0.8rem; font-size: 1.1rem; }
+.topic-card p { margin: 0; font-size: 0.95rem; line-height: 1.5; color: #e8eaf0; }
+.fictitious-example { margin-top: 0.5rem; padding: 0.5rem; background: #0f1117; border-left: 3px solid #4dff8a; font-size: 0.85rem; color: #98a0b3; }
+.traceability { margin-top: auto; padding-top: 0.8rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; }
+.badge { padding: 0.2rem 0.4rem; border-radius: 4px; font-weight: bold; text-transform: uppercase; font-size: 0.7rem; }
+.badge.dato { background: rgba(77, 255, 138, 0.2); color: #4dff8a; }
+.badge.interpretacion { background: rgba(184, 125, 255, 0.2); color: #b87dff; }
+.badge.decision { background: rgba(255, 184, 77, 0.2); color: #ffb84d; }
+.source-text { color: #6b7280; font-style: italic; }

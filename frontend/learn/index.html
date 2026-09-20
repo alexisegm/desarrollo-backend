@@ -14,7 +14,66 @@
       al menos tres interacciones significativas y tus fuentes. Todos los
       ejemplos serán ficticios: nada de tokens ni passwords reales.
     </p>
-    <p class="todo">TODO: consulta <code>entrega-05b.md</code> y construye desde aquí.</p>
+    <!-- BLOQUE 1: Fundamentos -->
+    <section class="topic-group">
+      <h2>1. Fundamentos de Identidad y Acceso</h2>
+      <div class="cards-grid" id="grid-fundamentos">
+        <!-- Aquí inyectaremos las fichas de: Identidad digital, AuthN, AuthZ, Auditoría -->
+      </div>
+      
+      <!-- INTERACCIÓN 1: El Cadenero de la API (AuthN vs AuthZ) -->
+      <div class="interaction-container" id="interaction-bouncer">
+        <h3>Interacción: El "Cadenero" de la API</h3>
+        <p class="interaction-desc">Descubre la diferencia entre saber quién eres y saber qué puedes hacer.</p>
+        <div id="bouncer-app"></div> <!-- El JS pintará la app aquí -->
+      </div>
+    </section>
+
+    <!-- BLOQUE 2: Mecanismos Tradicionales y Modernos -->
+    <section class="topic-group">
+      <h2>2. El viaje de las Credenciales</h2>
+      <div class="cards-grid" id="grid-mecanismos">
+        <!-- Aquí inyectaremos: Passwords, Sesiones, Cookies, Bearer tokens, JWT, API keys -->
+      </div>
+
+      <!-- INTERACCIÓN 2: Simulador Forense de JWT -->
+      <div class="interaction-container" id="interaction-jwt">
+        <h3>Interacción: Simulador Forense de JWT</h3>
+        <p class="interaction-desc">Edita el payload y observa por qué firmado no significa cifrado ni seguro contra manipulaciones.</p>
+        <div id="jwt-app"></div> <!-- El JS pintará la app aquí -->
+      </div>
+    </section>
+
+    <!-- BLOQUE 3: Ecosistema y Estándares -->
+    <section class="topic-group">
+      <h2>3. Terceros y Estándares</h2>
+      <div class="cards-grid" id="grid-estandares">
+        <!-- Aquí inyectaremos: OAuth 2, OIDC, MFA, Passkeys, Proveedores de identidad -->
+      </div>
+    </section>
+
+    <!-- BLOQUE 4: Arquitectura y Decisiones -->
+    <section class="topic-group">
+      <h2>4. Diseñando la Seguridad</h2>
+      <div class="cards-grid" id="grid-arquitectura">
+        <!-- Aquí inyectaremos: Propia vs Gestionada, Riesgos comunes, Casos de uso -->
+      </div>
+
+      <!-- INTERACCIÓN 3: Árbol de decisión -->
+      <div class="interaction-container" id="interaction-decision">
+        <h3>Interacción: Árbol de Decisión de Arquitectura</h3>
+        <p class="interaction-desc">Responde las preguntas para descubrir qué solución de autenticación requiere tu proyecto.</p>
+        <div id="decision-app"></div> <!-- El JS pintará la app aquí -->
+      </div>
+    </section>
+
+    <!-- BLOQUE 5: Fuentes -->
+    <section class="topic-group">
+      <h2>Fuentes y Trazabilidad</h2>
+      <div class="sources-list" id="fuentes-lista">
+        <!-- Aquí documentaremos de dónde salió cada dato -->
+      </div>
+    </section>
   </main>
   <script type="module" src="./main.js"></script>
 </body>
