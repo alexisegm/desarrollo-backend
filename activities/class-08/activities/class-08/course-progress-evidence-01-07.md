@@ -8,11 +8,11 @@ Generado automáticamente — completa las secciones marcadas con [COMPLETAR] an
 * studentId: alexisgonzalez.itsu@gmail.com
 * promptVersion: ITSU-CHECKPOINT-01-07-1.0
 * rubricVersion: BACKEND-01-07-R1
-* generatedAt: 2026-09-29T14:36:30.350Z (EXECUTED_NOW)
+* generatedAt: 2026-10-12T17:23:10.544Z (EXECUTED_NOW)
 * repoRoot: desarrollo-backend
-* commit: 5f1f54d (EXECUTED_NOW)
+* commit: 68c2867 (EXECUTED_NOW)
 * repositorioRemoto: https://github.com/alexisegm/desarrollo-backend.git (EXECUTED_NOW) — verifica que sea TU repositorio antes de continuar
-* modeloUtilizado: Gemini Pro
+* modeloUtilizado: [COMPLETAR después de ejecutar el prompt]
 
 ### Contexto de git (informativo, EXECUTED_NOW)
 
@@ -23,14 +23,14 @@ del repositorio remoto del estudiante y sus respuestas. La ausencia de
 commits aquí no debe interpretarse como evidencia faltante.
 
 ```text
+68c2867 class-07-submission
+cffbfa9 Subida clase-08
 5f1f54d fix: resolver INC-701 e INC-702 con validaciones y pruebas de regresion
 698847c feat(learn): implementacion general para Entrega 05B
 73165e3 chore: entrega clase 06
 0b3b911 feat: creacion de enpoint de historial de solicitudes
 d1bc410 fix: return empty array for valid empty collection
 39de697 chore: setup inicial de environment clase 06
-d21fd8a docs: actualizacion de archivos documentales README.md y ai-usage.md, ademas de integrar la evidencias visuales en la carpeta correspondiente
-e303bda refactor: implementacion de refactorizacion y modularizacion del frontend
 ```
 
 ## Evidencia por clase
@@ -484,7 +484,7 @@ FINAL RESULT: PASSED
 * FOUND: activities\class-07-starter\incidents\INC-701-invalid-request-id.md
 * FOUND: activities\class-07-starter\incidents\INC-702-invalid-priority.md
 * FOUND: activities\class-07-starter\incidents\OPS-703-untraceable-errors.md
-* … 52 archivo(s) más con el mismo patrón
+* … 53 archivo(s) más con el mismo patrón
 
 Extracto de activities\class-07-starter\activities\class-07\incident-report.md (redactado automáticamente):
 
@@ -497,29 +497,29 @@ interpretaciones: un "creo que" pertenece a Hypotheses, no a Evidence.
 ## Baseline
 
 Which command confirmed the starting state?
+`npm run class-07:doctor` y `npm test`.
 
 ## Incident 701
 
 ### Report
 
 (what support said, in one or two lines)
+Algunos identificadores de solicitudes alfanuméricos o con formatos incorrectos devuelven un error interno del servidor (500) en lugar de un código de error controlado.
 
 ### Reproduction
 
 (the exact request: method, path, user/role, body if any)
+`GET /requests/not-a-number` con un token de autenticación válido de rol requester.
 
 ### Expected result
+Un código de estado HTTP 400 con el código de error controlado `INVALID_REQUEST_ID` y estructura JSON estandarizada.
 
 ### Actual result
 
 (status and body actually received — copy them)
+Respuesta con fallo interno de servidor (500) o un cuerpo de error plano que no cumplía con el formato de contrato esperado.
 
-### Hypotheses
-
-(at least two, ordered by probability, each with HOW you would check it)
-
-### Evidence
-[... 56 líneas más]
+[... 91 líneas más]
 ```
 
 Extracto de activities\class-07-starter\activities\class-07\validation-evidence.txt (redactado automáticamente):
@@ -529,20 +529,40 @@ Pega aquí la salida REAL y COMPLETA de:
 
     npm run validate:class-07
 
-Debe incluir las 12 verificaciones con sus secciones (Baseline, Input and
-errors, Traceability, Operation), la línea de Cleanup y el FINAL RESULT.
 
-Antes de guardar, revisa que no haya ninguna credencial pegada por error:
-ni DATABASE_URL, ni JWT_SECRET, ni tokens. Si aparece algo así,
-reemplázalo por [configured].
+> class-07-request-api@7.0.0 validate:class-07
+> node scripts/validate-class-07.js
 
+CLASS 07 INCIDENT VALIDATION
+
+Baseline
+[01/12] Existing contract preserved .......... PASS
+
+Input and errors
+[02/12] Invalid id returns 400 ............... PASS
+[03/12] Invalid priority returns 400 ......... PASS
+[04/12] Unknown request returns 404 .......... PASS
+[05/12] Invalid transition returns 409 ....... PASS
+[06/12] Unexpected errors return 500 ......... PASS
+[07/12] Internal details remain hidden ....... PASS
+
+Traceability
+[08/12] Response contains request id ......... PASS
+[09/12] Log contains the same request id ..... PASS
+[10/12] Authorization header is not logged ... PASS
+
+Operation
+[11/12] Health endpoint responds ............. PASS
+[12/12] Readiness checks PostgreSQL .......... PASS
+
+[... 4 líneas más]
 ```
 
 ## Estado previo a la clase 8
 
 * Validadores disponibles (clases 1-7): activities\class-06-starter\scripts\validate-class-06.js, activities\class-07-starter\scripts\validate-class-06.js, activities\class-07-starter\scripts\validate-class-07.js, activities\class-08\scripts\validate-class-06.js, activities\class-08\scripts\validate-class-07.js, project\scripts\validate-class-05.js
 * Carpetas de pruebas: NOT_FOUND
-* Último commit antes del taller: 5f1f54d
+* Último commit antes del taller: 68c2867
 
 ## Cuestionario diagnóstico (responde aquí, 3-6 líneas cada una)
 
@@ -552,13 +572,13 @@ Sé específico: cita archivos o rutas concretas de TU proyecto cuando puedas. L
 
 Describe qué ocurre desde que una petición llega al backend hasta que sale una respuesta y explica por qué el servidor debe permanecer activo.
 
-Respuesta:Al producirse una peticion, se envia una solicitud en particular que solicita los datos. El Servidor debe estar escuchando las peticiones o solicitudes que llegan a él, por ende debe mantenerse activo o "levantado". El servidor responde a traves de repuestas asincronas, mediante un servicio configurado como API, respondiendo la solicitud en particular en forma de codigos de Estado HTTP el cual incluye un titulo y un body. 
+Respuesta: [COMPLETAR]
 
 ### Pregunta clase 02
 
 Elige un endpoint del proyecto y explica cómo método, ruta, body y status forman su contrato.
 
-Respuesta: Tomando como referencia el metodo GET/, maneja el metodo GET, en este caso en la ruta /requests, respondiendo el contenido de la solicitud generalmente en formato JSON y a su vez in
+Respuesta: [COMPLETAR]
 
 ### Pregunta clase 03
 

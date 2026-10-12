@@ -226,4 +226,4 @@ Siento que me costó mas el manejo de especifico de lo que devuelve el servidor 
 2. Compara este resultado con tu reporte de evidencia: ¿coinciden? ¿Dónde
    difieren y qué te dice esa diferencia?
 
-[COMPLETAR]
+El resultado es acorde a mi estado actual en el curso. Me falta definir muchos conceptos basicos para tener claro detalles como la estructura y el contrato de peticiones HTTP, entender correctamente el significado de los codigos de estado y las reglas de negocio entre otras cosas. 
