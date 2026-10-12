@@ -12,7 +12,6 @@ import {
   patchRequest,
   getHistory
 } from './requests.service.js';
-import { respondError } from '../../http/respond-error.js';
 import { AppError } from '../../app-error.js';
 
 const router = express.Router();
@@ -27,47 +26,27 @@ function parseRequestId(rawId) {
 }
 
 router.get('/', async (req, res) => {
-  try {
-    const { status, priority } = req.query;
-    res.status(200).json(await listRequests(req.auth, { status, priority }));
-  } catch (error) {
-    respondError(res, error);
-  }
+  const { status, priority } = req.query;
+  res.status(200).json(await listRequests(req.auth, { status, priority }));
 });
 
 router.get('/:id', async (req, res) => {
-  try {
-    const id = parseRequestId(req.params.id);
-    res.status(200).json(await getRequest(req.auth, id));
-  } catch (error) {
-    respondError(res, error);
-  }
+  const id = parseRequestId(req.params.id);
+  res.status(200).json(await getRequest(req.auth, id));
 });
 
 router.get('/:id/history', async (req, res) => {
-  try {
-    const id = parseRequestId(req.params.id);
-    res.status(200).json(await getHistory(req.auth, id));
-  } catch (error) {
-    respondError(res, error);
-  }
+  const id = parseRequestId(req.params.id);
+  res.status(200).json(await getHistory(req.auth, id));
 });
 
 router.post('/', async (req, res) => {
-  try {
-    res.status(201).json(await createRequest(req.auth, req.body));
-  } catch (error) {
-    respondError(res, error);
-  }
+  res.status(201).json(await createRequest(req.auth, req.body));
 });
 
 router.patch('/:id', async (req, res) => {
-  try {
-    const id = parseRequestId(req.params.id);
-    res.status(200).json(await patchRequest(req.auth, id, req.body));
-  } catch (error) {
-    respondError(res, error);
-  }
+  const id = parseRequestId(req.params.id);
+  res.status(200).json(await patchRequest(req.auth, id, req.body));
 });
 
 export default router;

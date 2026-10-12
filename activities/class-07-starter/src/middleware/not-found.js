@@ -10,9 +10,15 @@
 // Questions before coding:
 //   - Where must this middleware live so it runs ONLY when nothing matched?
 //   - Why is echoing the requested path back into the message a bad idea?
+
 import { AppError } from '../app-error.js';
 
 export function notFound(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
-  next();
+  next(
+    new AppError(
+      'resource',
+      'ROUTE_NOT_FOUND',
+      `Route ${req.method} ${req.originalUrl} not found.`
+    )
+  );
 }

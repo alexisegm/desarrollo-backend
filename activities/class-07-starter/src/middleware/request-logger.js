@@ -24,6 +24,42 @@
 import { logger } from '../logging/logger.js';
 
 export function requestLogger(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
+  // 1. Registrar el tiempo de inicio con alta precisión (monotonic time)
+  const start = process.hrtime.bigint();
+
+  // 2. Suscribirse al evento 'finish' de la respuesta (el único momento donde el status final es conocido)
+  res.on('finish', () => {
+    const durationNs = process.hrtime.bigint() - start;
+    const durationMs = Number(durationNs) / 1_000_000;
+    const status = res.statusCode;
+
+    // 3. Construir los campos utilizando una allowlist estricta
+    const logData = {
+      requestId: req.requestId,
+      method: req.method,
+      path: req.originalUrl || req.url,
+      status,
+      durationMs: Math.round(durationMs)
+    };
+
+    // Agregar userId si el usuario está autenticado
+    if (req.auth && req.auth.userId) {
+      logData.userId = req.auth.userId;
+    }
+
+    // Agregar errorCode si el manejador de errores lo estableció en res.locals
+    if (res.locals && res.locals.errorCode) {
+      logData.errorCode = res.locals.errorCode;
+    }
+
+    // 4. Registrar usando error para códigos >= 500 e info para el resto
+    if (status >= 500) {
+      logger.error('request_failed', logData);
+    } else {
+      logger.info('request_completed', logData);
+    }
+  });
+
+  // 5. Llamar a next() de inmediato para no retrasar el flujo de la petición
   next();
 }

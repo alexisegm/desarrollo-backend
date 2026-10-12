@@ -22,6 +22,18 @@
 import { randomUUID } from 'node:crypto';
 
 export function requestId(req, res, next) {
-  // TODO(OPS-703): replace this pass-through with the real implementation.
+  const clientHeader = req.get('X-Request-Id');
+  // Expresión regular para validar formato seguro (alfanumérico, ., _, -, máx 64 chars)
+  const boringFormat = /^[a-zA-Z0-9._-]{1,64}$/;
+
+  let id;
+  if (clientHeader && boringFormat.test(clientHeader)) {
+    id = clientHeader;
+  } else {
+    id = `req_${randomUUID()}`;
+  }
+
+  req.requestId = id;
+  res.set('X-Request-Id', id);
   next();
 }
