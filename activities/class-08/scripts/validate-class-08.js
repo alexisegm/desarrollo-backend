@@ -12,8 +12,8 @@
 // enough that you can read them and understand exactly what they demand.
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { execSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import app from '../src/app.js';
@@ -97,6 +97,35 @@ function detail(expected, received, review) {
   return { expected, received, review };
 }
 
+function runExistingTests() {
+  try {
+    const testFiles = readdirSync(path.join(ROOT, 'test'))
+      .filter((file) => file.endsWith('.test.js'))
+      .map((file) => path.join(ROOT, 'test', file));
+    execFileSync(process.execPath, [
+      '--test',
+      '--test-concurrency=1',
+      ...testFiles
+    ], {
+      cwd: ROOT, stdio: 'pipe', timeout: 300000
+    });
+    return null;
+  } catch (error) {
+    const output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
+    const failing = (output.match(/^✖.*$/gm) ?? []).slice(0, 3).join(' | ');
+    const reason = failing
+      || (error.code === 'ETIMEDOUT'
+        ? 'the suite exceeded the 300-second timeout'
+        : error.message || 'the suite exited with failures');
+    return detail('npm test fully green', reason,
+      ['run npm test yourself and read the first failing test',
+        'a refactor that breaks a test changed observable behavior']);
+  }
+}
+
+// Run the suite before this validator creates its own database fixtures.
+const existingTestsFailure = runExistingTests();
+
 let owner, ownerToken, stranger, strangerToken, agent, agentToken;
 let claimTarget, claimed;
 
@@ -146,18 +175,7 @@ const CHECKS = [
   }],
 
   ['Baseline', 'Existing tests pass', async () => {
-    try {
-      execSync(`node --test --test-concurrency=1 'test/*.test.js'`, {
-        cwd: ROOT, stdio: 'pipe', timeout: 180000, shell: '/bin/bash'
-      });
-      return null;
-    } catch (error) {
-      const output = `${error.stdout ?? ''}${error.stderr ?? ''}`;
-      const failing = (output.match(/^not ok.*$/gm) ?? []).slice(0, 3).join(' | ');
-      return detail('npm test fully green', failing || 'the suite exited with failures',
-        ['run npm test yourself and read the first failing test',
-          'a refactor that breaks a test changed observable behavior']);
-    }
+    return existingTestsFailure;
   }],
 
   ['Claim request', 'Authentication required', async () => {
