@@ -1,0 +1,93 @@
+{ "placeholder": "REPLACE this file with BLOQUE 2 (only the JSON) from your evaluation" }
+{
+  "protocolVersion": "ITSU-KNOWLEDGE-09-1.0",
+  "rubricVersion": "BACKEND-01-08-K1",
+  "evaluationId": "K09-STU042-backend2026",
+  "studentId": "STU042",
+  "commit": "a1b2c3d",
+  "variant": "B",
+  "status": "COMPLETE",
+  "action": "SUPPORT",
+  "questions": [
+    {
+      "questionId": "Q1",
+      "topics": ["Express routing", "request flow"],
+      "levels": { "conceptual": 3, "grounding": 3, "reasoning": 3, "verification": 2 },
+      "evidence": ["Identificó correctamente la estructura modular en src/modules/requests/ y src/routes/."],
+      "strength": "Buena trazabilidad de la arquitectura de rutas y servicios.",
+      "gap": "",
+      "rectification": "",
+      "confidence": "high"
+    },
+    {
+      "questionId": "Q2",
+      "topics": ["Database transactions", "data invariants"],
+      "levels": { "conceptual": 3, "grounding": 2, "reasoning": 3, "verification": 3 },
+      "evidence": ["Reconoció que fallos parciales generan datos corruptos y que se requieren transacciones ACID."],
+      "strength": "Comprende la integridad referencial y transaccional.",
+      "gap": "Dificultad inicial para detallar el estado inconsistente sin guía.",
+      "rectification": "Clarificó el impacto de la falta de atomicidad entre tablas.",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "Q3",
+      "topics": ["Authentication", "authorization", "JWT"],
+      "levels": { "conceptual": 2, "grounding": 3, "reasoning": 2, "verification": 2 },
+      "evidence": ["Identificó authenticate.js y JWT como fuente de identidad segura, evitando confiar en campos del body."],
+      "strength": "Sólido entendimiento de la seguridad en la identidad frente a datos mutables.",
+      "gap": "Confusión inicial con middleware de logging/CORS.",
+      "rectification": "Asoció correctamente la verificación de tokens con la identidad confiable.",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "Q4",
+      "topics": ["Database errors", "foreign key constraints"],
+      "levels": { "conceptual": 2, "grounding": 2, "reasoning": 3, "verification": 2 },
+      "evidence": ["Identificó que el campo assigned_to causaba la violación de llave foránea tras analizar la evidencia."],
+      "strength": "Capacidad de deducción a partir de logs y estado del recurso.",
+      "gap": "Requirió asistencia guiada para conectar la violación de la constraint con assigned_to.",
+      "rectification": "Comprendió el impacto de referencias inexistentes en relaciones SQL.",
+      "confidence": "medium"
+    },
+    {
+      "questionId": "Q5",
+      "topics": ["Software architecture", "anti-over-engineering"],
+      "levels": { "conceptual": 3, "grounding": 3, "reasoning": 3, "verification": 2 },
+      "evidence": ["Conservó controller, use case y mapper, descartando over-engineering como event bus."],
+      "strength": "Excelente pragmatismo arquitectónico y evitación de sobreingeniería.",
+      "gap": "Confundió inicialmente el dominio de soporte con inventario de productos.",
+      "rectification": "Ajustó la conceptualización al dominio de tickets y agentes.",
+      "confidence": "high"
+    }
+  ],
+  "priorityGaps": [
+    "Confusión inicial entre capas de infraestructura transversal (CORS/Logger) y autenticación.",
+    "Dependencia de guía externa para diagnosticar restricciones de clave foránea en Q4."
+  ],
+  "strengths": [
+    "Excelente pragmatismo y rechazo de sobreingeniería en diseño de software.",
+    "Sólida comprensión de seguridad basada en tokens JWT frente a campos mutables del cliente.",
+    "Buena trazabilidad de endpoints y componentes Express."
+  ],
+  "recommendedStudyActions": [
+    "Repasar el flujo completo de autenticación y autorización con middlewares en Express.",
+    "Profundizar en la lectura y diagnóstico de logs de errores SQL y restricciones de llaves foráneas.",
+    "Practicar la identificación de entidades de dominio en arquitecturas modulares."
+  ],
+  "reviewSignals": ["SUPPORT"],
+  "teacherReview": {
+    "priority": "medium",
+    "oralVerificationRecommended": false,
+    "questions": [
+      {
+        "question": "¿Cómo garantiza una transacción ACID la consistencia entre requests y request_history?",
+        "minimumExpectedAnswer": "Mediante el uso de un bloque transaccional que realiza un rollback completo si alguna de las operaciones de escritura falla."
+      }
+    ],
+    "minimumExpectedAnswers": [
+      "Uso de bloques transaccionales y rollback en PostgreSQL."
+    ],
+    "reason": "El estudiante demostró buen nivel técnico y pragmatismo, requiriendo apoyo puntual en diagnóstico de base de datos.",
+    "digest": "Evaluación completada con éxito. Demuestra fuerte dominio de arquitectura modular y seguridad JWT, con áreas de refuerzo en diagnóstico SQL."
+  }
+}
