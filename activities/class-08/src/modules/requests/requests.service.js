@@ -10,7 +10,8 @@ import {
   insertRequest,
   updateRequest,
   insertHistoryEvent,
-  findHistory
+  findHistory,
+  assignRequest
 } from './requests.store.js';
 import { mapRequestRow, mapHistoryEventRow } from './request.mapper.js';
 import { STATUSES, isValidStatus, isTerminal, canTransition } from './request-status.js';
@@ -21,7 +22,8 @@ import {
   canEditContent,
   canChangePriority,
   canChangeStatus,
-  canViewHistory
+  canViewHistory,
+  canClaimRequest
 } from './request.policy.js';
 import { AppError } from '../../app-error.js';
 
@@ -30,7 +32,7 @@ const UPDATABLE_FIELDS = ['title', 'description', 'priority', 'status'];
 
 // Fields the server controls on requests. Sending them is a contract
 // violation, answered explicitly — never silently ignored.
-const SERVER_CONTROLLED_FIELDS = ['id', 'createdBy', 'createdAt', 'updatedAt', 'changedBy'];
+const SERVER_CONTROLLED_FIELDS = ['id', 'createdBy', 'createdAt', 'updatedAt', 'changedBy', 'assignedTo'];
 
 // A foreign resource answers exactly like a missing one: same status,
 // same code, same message. A different answer would confirm it exists.
@@ -106,7 +108,6 @@ export async function createRequest(actor, input) {
     throw forbidden('Only requesters can create requests.');
   }
 
-  // status is also server-controlled at creation: a request is born open.
   rejectServerControlledFields(input, ['status']);
 
   const { title, description, priority } = input ?? {};
@@ -116,9 +117,6 @@ export async function createRequest(actor, input) {
   }
   if (priority !== undefined) assertValidPriority(priority);
 
-  // Creation is a unit of work: the request AND its birth history
-  // (NULL -> open) happen together or not at all. The owner and the
-  // history actor come from the authenticated identity.
   const row = await withTransaction(async (client) => {
     const created = await insertRequest({
       title: title.trim(),
@@ -161,8 +159,6 @@ export async function patchRequest(actor, id, body) {
   }
   if (changes.title !== undefined) changes.title = changes.title.trim();
 
-  // Read, authorize against the CURRENT state, validate, write and record
-  // history — all with the same client, as one unit of work.
   const row = await withTransaction(async (client) => {
     const current = await findById(id, client);
     if (!current) throw notFound(id);
@@ -170,8 +166,6 @@ export async function patchRequest(actor, id, body) {
     const request = mapRequestRow(current);
     if (!canViewRequest(actor, request)) throw notFound(id);
 
-    // Authorization is all-or-nothing: a body mixing an allowed change
-    // with a forbidden one is rejected whole. No partial surprises.
     const wantsContent = changes.title !== undefined || changes.description !== undefined;
     const wantsPriority = changes.priority !== undefined;
     const wantsStatus = changes.status !== undefined;
@@ -186,7 +180,6 @@ export async function patchRequest(actor, id, body) {
       throw forbidden('Only agents can change the status.');
     }
 
-    // The rules from classes 3-4 still apply — to every role.
     if (isTerminal(current.status)) {
       throw new AppError('domain', 'REQUEST_IN_TERMINAL_STATUS',
         `Request ${id} is ${current.status} and can no longer be modified.`);
@@ -199,8 +192,6 @@ export async function patchRequest(actor, id, body) {
     }
 
     const updated = await updateRequest(id, changes, client);
-    // The history actor is the authenticated identity — changedBy can
-    // never arrive from the body. Each kind of change leaves its own event.
     if (statusChanges) {
       await insertHistoryEvent({
         requestId: id,
@@ -223,4 +214,41 @@ export async function patchRequest(actor, id, body) {
   });
 
   return mapRequestRow(row);
+}
+
+// NUEVA FUNCIÓN CLAIM
+export async function claimRequest(actor, id, body) {
+  rejectServerControlledFields(body, ['status']);
+
+  return await withTransaction(async (client) => {
+    const current = await findById(id, client);
+    if (!current) throw notFound(id);
+
+    const request = mapRequestRow(current);
+
+    const policy = canClaimRequest({ actor, request });
+    if (!policy.allowed) {
+      if (policy.reason === 'NOT_AGENT') {
+        throw forbidden('Only agents can claim requests.');
+      }
+      if (policy.reason === 'ALREADY_ASSIGNED') {
+        throw new AppError('domain', 'REQUEST_ALREADY_ASSIGNED', 'The request is already assigned.');
+      }
+      if (policy.reason === 'NOT_OPEN') {
+        throw new AppError('domain', 'REQUEST_NOT_CLAIMABLE', 'Only open requests can be claimed.');
+      }
+    }
+
+    const updated = await assignRequest(id, actor.userId, client);
+
+    await insertHistoryEvent({
+      requestId: id,
+      type: 'request_claimed',
+      fromStatus: current.status,
+      toStatus: 'in_progress',
+      changedBy: actor.userId
+    }, client);
+
+    return mapRequestRow(updated);
+  });
 }

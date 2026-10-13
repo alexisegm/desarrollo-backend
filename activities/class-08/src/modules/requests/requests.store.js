@@ -12,6 +12,7 @@ const REQUEST_COLUMNS = `
   priority,
   status,
   created_by,
+  assigned_to,
   created_at,
   updated_at
 `;
@@ -55,9 +56,6 @@ export async function findById(id, db = pool) {
 }
 
 export async function insertRequest({ title, description, priority, createdBy }, db = pool) {
-  // The database generates id, status default, and both timestamps.
-  // createdBy comes from the service — from the authenticated actor,
-  // never from the request body.
   const result = await db.query(
     `INSERT INTO requests (title, description, priority, created_by)
      VALUES ($1, $2, $3, $4)
@@ -89,9 +87,21 @@ export async function updateRequest(id, changes, db = pool) {
   return result.rows[0] ?? null;
 }
 
+// NUEVA FUNCIÓN PARA EL CLAIM
+export async function assignRequest(id, agentId, db = pool) {
+  const result = await db.query(
+    `UPDATE requests
+     SET assigned_to = $2,
+         status = 'in_progress',
+         updated_at = CURRENT_TIMESTAMP
+     WHERE id = $1
+     RETURNING ${REQUEST_COLUMNS}`,
+    [id, agentId]
+  );
+  return result.rows[0];
+}
+
 export async function insertHistoryEvent(event, db = pool) {
-  // One writer for both event types. The service decides WHICH fields the
-  // event carries; unused columns stay NULL.
   const { requestId, type, fromStatus, toStatus, fromPriority, toPriority, changedBy } = event;
   await db.query(
     `INSERT INTO request_history
@@ -103,8 +113,6 @@ export async function insertHistoryEvent(event, db = pool) {
 }
 
 export async function findHistory(requestId, db = pool) {
-  // Oldest first; the id is the STABLE tie-breaker when two events share
-  // the same timestamp.
   const result = await db.query(
     `SELECT id, type, from_status, to_status, from_priority, to_priority, created_at
      FROM request_history
