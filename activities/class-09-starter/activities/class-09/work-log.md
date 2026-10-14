@@ -6,7 +6,7 @@ completas aquí: registra el criterio, no el chat.
 
 ## What I observed before asking AI
 
-[COMPLETAR — qué habías leído/ejecutado tú antes de preguntar.]
+Ejecute los comandos de inicializacion del proyecto (npm run doctor, npm run db:migrate, npm run db:seed y npm test), en los cuales obtuve los 7/7 pass del chequeo de environment, las migraciones saltadas y la suite de pruebas en verde con los 5 todos de la actividad.
 
 ## What I asked
 
