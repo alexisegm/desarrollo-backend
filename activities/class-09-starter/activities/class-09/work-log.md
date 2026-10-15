@@ -25,8 +25,10 @@ Ejecute los comandos de inicializacion del proyecto (npm run doctor, npm run db:
 [COMPLETAR]
 
 ## What I rejected
-
-[COMPLETAR — y por qué: esta sección vale más que la anterior.]
+*   **Rechazado:** Filtrar `createdBy` directamente en el `store.js` o en la consulta SQL para el detalle.
+*   **Por qué lo rechacé:** Mezcla visibilidad con acceso a datos; un agente también usa ese camino y si filtramos en SQL, el error de "no tienes permiso" ya no sería distinguible de "el ID no existe". Además, la decisión pertenece a la capa de políticas (`request.policy.js`).
+*   **Rechazado:** Devolver un código HTTP `403 Forbidden` al usuario sin permisos.
+*   **Por qué lo rechacé:** Aunque parezca semánticamente correcto, rompería la regla de no-enumeración de este sistema. El historial ya responde con `404` indistinguible y el ticket pedía igualar este comportamiento.
 
 ## What I changed
 
