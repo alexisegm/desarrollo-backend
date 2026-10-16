@@ -33,21 +33,20 @@ lógica" sin nombres no cuenta como inventario.
 | Scripts operativos | scripts/ | Ejecutar diagnósticos, migraciones y validaciones | "db:migrate": "node scripts/migrate.js" en package.json. | |
 | Dependencias externas | express, pg, node:test | Proveer servidor HTTP, conexión nativa a DB y framework de pruebas. | import express from 'express' | |
 
+
+
 ## 3. Request trace
 
-Recorrido completo de `GET /requests/:id` — en orden, con archivo y
-función en cada paso:
-
-1. **Router:** `requests.routes.js` intercepta la petición en `router.get('/:id', ...)`.
-2. **Middlewares que atraviesa:** Según `app.js`, pasa primero por los globales (`corsPolicy`, `requestId`, `requestLogger`, `express.json()`) y luego por `authenticate` al entrar a las rutas de `/requests`.
-3. **Dónde se valida el parámetro `id`:** En el enrutador (`requests.routes.js`), usando la función `parseIdParam(req.params.id)` ANTES de pasarlo al service.
-4. **Dónde nace la identidad autenticada:** En `src/middleware/authenticate.js`, que extrae el token del header `Authorization`, lo verifica usando `verifyToken()` y construye `req.auth = { userId, role }`.
-5. **Policy consultada (¿se consulta?):** Aquí está el problema. Para `getRequest()`, **NO SE CONSULTA** ninguna policy. Hay un comentario: `// TEMP(REQ-442): visibility check disabled...`.
-6. **Service:** `requests.service.js` en su función `getRequest(actor, id)`. Llama al store y lanza `notFound(id)` si no encuentra la fila.
-7. **Store y query:** Llama a la función `findById(id)` (que asumo está en `requests.store.js` por las importaciones).
-8. **Transformación fila → JSON:** A través de la función `mapRequestRow(row)` antes de devolver el objeto.
-9. **Respuesta y manejo de errores:** El enrutador (`requests.routes.js`) recibe la respuesta y la envía con `res.status(200).json(...)`. Si ocurre un error, Express lo deriva al `errorHandler` global.
-10. **Pruebas existentes que cubren este recorrido:** Las salidas del log inicial muestran que se prueba que el owner puede leerla y que los parámetros maliciosos o IDs que no existen devuelven los errores correspondientes. Las pruebas de asimetría están como `todo`.
+1. Router: src/modules/requests/requests.routes.js intercepta la petición.
+2. Middlewares: src/app.js aplica reglas, luego src/middleware/authenticate.js extrae la identidad.
+3. Validación de entrada: src/modules/requests/requests.routes.js revisa el formato del ID.
+4. Identidad: src/middleware/authenticate.js verifica el JWT.
+5. Policy consultada: src/modules/requests/request.policy.js define la regla de negocio.
+6. Service: src/modules/requests/requests.service.js orquesta las llamadas.
+7. Store: src/modules/requests/requests.store.js consulta PostgreSQL.
+8. Transformación: src/modules/requests/request.mapper.js aísla el esquema SQL del JSON.
+9. Errores: src/middleware/error-handler.js formatea las respuestas fallidas.
+10. Pruebas: test/request-detail.test.js y test/request-access-policy.test.js
 
 ## 4. Database inventory
 

@@ -17,13 +17,13 @@ export function canListAllRequests(actor) {
   return actor.role === 'agent';
 }
 
-export function canViewRequest(actor, request) {
+export function canViewRequest({ actor, request }) {
   if (actor.role === 'agent') return true;
   return request.createdBy === actor.userId;
 }
 
-export function canViewHistory(actor, request) {
-  return canViewRequest(actor, request);
+export function canViewHistory({ actor, request }) {
+  return canViewRequest({ actor, request });
 }
 
 export function canCreateRequest(actor) {

@@ -89,7 +89,7 @@ export async function getRequest(actor, id) {
 
   const request = mapRequestRow(row);
   
-  if (!canViewRequest(actor, request)) {
+  if (!canViewRequest({ actor, request })) {
     throw notFound(id);
   }
 
@@ -163,7 +163,7 @@ export async function patchRequest(actor, id, body) {
     if (!current) throw notFound(id);
 
     const request = mapRequestRow(current);
-    if (!canViewRequest(actor, request)) throw notFound(id);
+    if (!canViewRequest({ actor, request })) throw notFound(id);
 
     // Authorization is all-or-nothing: a body mixing an allowed change
     // with a forbidden one is rejected whole. No partial surprises.
@@ -225,7 +225,7 @@ export async function getHistory(actor, id) {
   if (!row) throw notFound(id);
 
   const request = mapRequestRow(row);
-  if (!canViewHistory(actor, request)) throw notFound(id);
+  if (!canViewHistory({ actor, request })) throw notFound(id);
 
   const rows = await findHistory(id);
   return rows.map(mapHistoryEventRow);

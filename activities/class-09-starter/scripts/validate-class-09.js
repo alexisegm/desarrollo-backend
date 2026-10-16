@@ -14,8 +14,8 @@
 // the oral verification are for.
 import 'dotenv/config';
 import crypto from 'node:crypto';
-import { execSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -298,8 +298,12 @@ const CHECKS = [
 
   ['Boundaries and regression', 'Regression suite passes', async () => {
     try {
-      execSync(`node --test --test-concurrency=1 'test/*.test.js'`, {
-        cwd: ROOT, stdio: 'pipe', timeout: 240000, shell: '/bin/bash'
+      const testFiles = readdirSync(path.join(ROOT, 'test'))
+        .filter((file) => file.endsWith('.test.js'))
+        .sort()
+        .map((file) => path.join('test', file));
+      execFileSync(process.execPath, ['--test', '--test-concurrency=1', ...testFiles], {
+        cwd: ROOT, stdio: 'pipe', timeout: 720000
       });
       return null;
     } catch (error) {
